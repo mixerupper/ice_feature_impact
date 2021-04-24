@@ -1,3 +1,5 @@
+# Copied from github of replication code
+
 library(ICEbox)
 library(randomForest)
 library(gam)
@@ -22,7 +24,7 @@ additivity_ex_sim = function(n,seednum=NULL){
 }
 
 # generate data:
-additivity_ex_data = additivity_ex_sim(1000)
+additivity_ex_data = additivity_ex_sim(1000, seednum = 50)
 Xy = additivity_ex_data$Xy
 X  = additivity_ex_data$X
 y  = additivity_ex_data$y
@@ -36,8 +38,8 @@ gam.dice = dice(gam.ice)
 
 # plot the ICE plot with pdp, and d-ICE with dpdp
 pdf("fig 7a.pdf", width = 7, height = 10) 
-plot(gam.ice, x_quantile = F, plot_pdp = T, frac_to_plot = 1)  
+plot(gam.ice, x_quantile = F, plot_pdp = T, frac_to_plot = 0.25)  
 dev.off()
 pdf("fig 7b.pdf", width = 7, height = 10) 
-plot(gam.dice, x_quantile = F, plot_dpdp = T, frac_to_plot = 1) 
+plot(gam.dice, x_quantile = F, plot_dpdp = T, frac_to_plot = 0.25) 
 dev.off()
