@@ -37,9 +37,9 @@ gam.ice = ice(gam_mod, X, predictor = 1, frac_to_build = 1)
 gam.dice = dice(gam.ice)
 
 # plot the ICE plot with pdp, and d-ICE with dpdp
-pdf("fig 7a.pdf", width = 7, height = 10) 
+pdf("../../data/results/01-replication/fig 7a.pdf", width = 7, height = 10) 
 plot(gam.ice, x_quantile = F, plot_pdp = T, frac_to_plot = 0.25)  
 dev.off()
-pdf("fig 7b.pdf", width = 7, height = 10) 
+pdf("../../data/results/01-replication/fig 7b.pdf", width = 7, height = 10) 
 plot(gam.dice, x_quantile = F, plot_dpdp = T, frac_to_plot = 0.25) 
 dev.off()
