@@ -87,7 +87,7 @@ def ice_plot(plot_data, feature):
     temp_df.loc[:, :] = temp_df.loc[index, :].values
     temp_df[feature] = feat
     # get predictions
-    preds = rf.predict_proba(temp_df)[:,1]
+    preds = clf.predict_proba(temp_df)[:,1]
     d[feature] = np.append(feat.array, d[feature])
     d['Predicted Probability'] = np.append(preds, d['Predicted Probability'])
     d['Obs'] = np.append(np.repeat(index, X.shape[0]), d['Obs'])
