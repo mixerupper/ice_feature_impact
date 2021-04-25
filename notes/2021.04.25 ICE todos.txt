@@ -1,0 +1,6 @@
+- Calculate d-ICE using ICE dataframe
+- Finish the fit (all) and plot (all) functions for both ICE and d-ICE
+- Test ICE class
+	- Other independent variables
+	- Other datasets
+	- Same dataset, multiple models. See if differences in model captured by ICE plots
