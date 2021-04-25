@@ -12,3 +12,7 @@ def interim_root(path):
 
 def results_root(path):
 	return data_root('results/' + path)
+
+
+# Import ICE class
+exec(open("../../scripts/ice_class.py").read())
