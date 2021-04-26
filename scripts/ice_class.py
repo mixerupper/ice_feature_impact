@@ -1,5 +1,3 @@
-from datetime import datetime
-
 class ICE():
 	def __init__(self, model_type, num_per_ob = 30, frac_to_plot = 0.9, seed_num = None, trace = False):
 		'''
@@ -145,10 +143,18 @@ class ICE():
 		return (fig, ax)
 
 
-	def plot():
+	def plot(ncols = 3):
 		'''
 		Plot all ICE plots in a grid
 		'''
+		# num_plots = len(self.ice_dfs)
+		# rows = np.ceil(num_plots/ncols)
+
+		# fig, axs = plt.subplots(nrows = nrows, ncols = ncols)
+
+		# for f in self.ice_dfs:
+		# 	axs[]
+
 
 		return
 

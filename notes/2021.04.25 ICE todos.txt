@@ -4,3 +4,5 @@
 	- Other independent variables
 	- Other datasets
 	- Same dataset, multiple models. See if differences in model captured by ICE plots
+- Currently not using seed_num to do random sampling in ICE class. Fix that.
+- Currently takes ~25 seconds to fit the "Age" feature for the cancer dataset. Try to reduce that.
