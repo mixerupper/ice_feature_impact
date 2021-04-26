@@ -1,20 +1,20 @@
 class ICE():
-	def __init__(self, model_type, num_per_ob = 30, frac_to_plot = 0.9, seed_num = None, trace = False):
+	def __init__(self, model_type, num_per_ob = 30, frac_sample = 0.9, seed_num = None, trace = False):
 		'''
 		Instantiates the ICE class
 		@param model_type : "binary" or "continuous" y-variable
 		@param num_per_ob : Number of points to generate per observation.
 							Points used in line plots.
-		@param frac_to_plot : Fraction of data set to plot.
+		@param frac_sample : Fraction of data set to sample for ICE df.
 		@param seed_num : Random seed for reproducibility.
 		@param trace : Turn on/off trace messages for debugging
 		@return ICE data (dataframe) with N observations.
 		@examples
-		ICE("binary", num_per_ob = 50, frac_to_plot = 0.5, seed_num = 420)
+		ICE("binary", num_per_ob = 50, frac_sample = 0.5, seed_num = 420)
 		'''
 		self.model_type = model_type
 		self.num_per_ob = num_per_ob
-		self.frac_to_plot = frac_to_plot
+		self.frac_sample = frac_sample
 		self.seed_num = seed_num
 		self.trace = trace
 
@@ -62,7 +62,7 @@ class ICE():
 		'''
 
 		# uniformly sample
-		X = self.uniform_sample(X, feature)
+		X = self.uniform_sample(X, feature, self.frac_sample)
 
 		feature_min = np.min(X[feature])
 		feature_max = np.max(X[feature])
@@ -76,16 +76,17 @@ class ICE():
 				.copy()\
 				.reset_index(drop = True)
 			temp_df[feature] = feature_range
-
-			# get predictions
-			if self.model_type == "binary":    
-			  preds = model.predict_proba(temp_df)[:,1]
-			else:
-			  preds = model.predict(temp_df)
-			temp_df['y_pred'] = preds
 			temp_df['obs'] = i
 
 			df = df.append(temp_df, ignore_index = True)
+
+		# get predictions
+		if self.model_type == "binary":    
+		  preds = model.predict_proba(df.drop('obs', axis = 1))[:,1]
+		else:
+		  preds = model.predict(df.drop('obs', axis = 1))
+		
+		df['y_pred'] = preds
 
 		return df
 		
@@ -159,7 +160,7 @@ class ICE():
 		return
 
 
-	def uniform_sample(self, df, feature):
+	def uniform_sample(self, df, feature, frac_sample):
 		'''
 		Uniformly sample across quantiles of feature to ensure not to leave out 
 		portions of the dist of the feature.
@@ -171,7 +172,7 @@ class ICE():
 		df = df.copy()
 
 		# get number of rows to sample
-		N = df.shape[0] * self.frac_to_plot
+		N = df.shape[0] * frac_sample
 		if self.trace:
 		    print(f"Sampling {N} observations")
 
