@@ -18,6 +18,9 @@ class ICE():
 		self.seed_num = seed_num
 		self.trace = trace
 
+		# Initializations to raise exceptions
+		self.fit_all = False
+
 		self.ice_dfs = {}
 
 
@@ -28,11 +31,18 @@ class ICE():
 		@param model : Model to interpet
 		'''
 
+		self.features = list(X.columns)
+
 		for feature in X:
-			start = datetime.now()
-			self.ice_dfs[feature] = self.ice_single_feature(X, model, feature)
-			end = datetime.now()
-			print(f"Fit {feature} in {(end - start).seconds} seconds")
+			try:
+				start = datetime.now()
+				self.ice_dfs[feature] = self.ice_single_feature(X, model, feature)
+				end = datetime.now()
+				print(f"Fit {feature} in {(end - start).seconds} seconds")
+			except ValueError:
+				print(f"Could not fit {feature} because of ValueError")
+
+		self.fit_all = True
 
 		return
 
@@ -44,6 +54,7 @@ class ICE():
 		@param model : Model to interpet
 		@param feature : Single feature to create ICE dataset for
 		'''
+
 		start = datetime.now()
 
 		self.ice_dfs[feature] = self.ice_single_feature(X, model, feature)
@@ -100,9 +111,8 @@ class ICE():
 		@examples
 		plot_single_feature('Age', plot_num = 500)
 		'''
-
 		plot_data = self.ice_dfs[feature]
-
+		
 		ob_sample = np.random.choice(plot_data.obs.unique(), 
 		                           size = plot_num, replace = False)
 
@@ -144,20 +154,58 @@ class ICE():
 		return (fig, ax)
 
 
-	def plot(ncols = 3):
+	def plot(self, save_path, plot_num = 300, ncols = 3):
 		'''
 		Plot all ICE plots in a grid
 		'''
-		# num_plots = len(self.ice_dfs)
-		# rows = np.ceil(num_plots/ncols)
+		if not self.fit_all:
+			raise Exception("Call `fit` method before trying to plot. You can also call `plot_single_feature`.")
 
-		# fig, axs = plt.subplots(nrows = nrows, ncols = ncols)
+		fig, axs = plt.subplots(nrows = nrows, ncols = ncols, figsize = (5*ncols,1*num_plots))
+		all_features = np.sort(list(self.ice_dfs.keys()))
 
-		# for f in self.ice_dfs:
-		# 	axs[]
+		for i, feature in enumerate(all_features):
+		    plot_data = ice.ice_dfs[feature]
+		    ob_sample = np.random.choice(plot_data.obs.unique(), 
+		                               size = plot_num, replace = False)
 
+		    ob_sample = np.append(ob_sample, [-1])
 
-		return
+		    mean_line = plot_data\
+		        .groupby(feature)\
+		        .agg(y_pred = ('y_pred', 'mean'))\
+		        .reset_index()\
+		        .assign(obs = -1,
+		                mean_line = 1)
+
+		    plot_sub_data = plot_data\
+		        .loc[lambda x:x.obs.isin(ob_sample)]\
+		        .assign(mean_line = 0)\
+		        .append(mean_line, ignore_index = True)
+
+		    # plot ICE
+		    for ob in ob_sample:
+		        d = plot_sub_data.loc[lambda x:x.obs == ob]
+		        if max(d.mean_line) == 0:
+		            alpha = 0.1
+		            color = "black"
+		            label = ""
+		        elif max(d.mean_line) == 1:
+		            alpha = 5
+		            color = "red"
+		            label = "Mean line"
+		        axs[int(i/3),i%3].plot(feature, 'y_pred', label = label, alpha = alpha, data = d, color = color)
+
+		    axs[int(i/3),i%3].set_xlabel(feature, fontsize=10)
+
+		handles, labels = axs[0,0].get_legend_handles_labels()
+		# fig.subplots_adjust(hspace=.5)
+		fig.legend(handles, labels, loc='lower center', borderaxespad = 0.5, borderpad = 0.5)
+		plt.tight_layout()
+
+		fig.savefig(save_path, 
+		            bbox_inches = 'tight',
+		            pad_inches = 1)
 
 
 	def uniform_sample(self, df, feature, frac_sample):
@@ -169,30 +217,38 @@ class ICE():
 		@examples
 		uniform_sample(df, 'Age')
 		'''
-		df = df.copy()
+		
+		# Determine if categorical or continuous
+		num_obs = df.shape[0]
+		num_unique_feature_values = len(df[feature].unique())
 
-		# get number of rows to sample
-		N = df.shape[0] * frac_sample
+		if num_unique_feature_values > 10:
+			featureIsCategorical = False
+		else:
+			featureIsCategorical = True
+
 		if self.trace:
-		    print(f"Sampling {N} observations")
+			print(f"{feature} is categorical: {featureIsCategorical}")
 
-		# get amount for each quantile (sometimes uneven)
-		quantile = [N // 4 + (1 if x < N % 4 else 0)  for x in range (4)]
+		# Categorical
+		if featureIsCategorical:
+			sample_df = df\
+				.groupby(feature)\
+				.apply(lambda x:x.sample(int(np.ceil(x.shape[0] * frac_sample))))\
+				.reset_index(drop = True)
+		elif not featureIsCategorical:
+			sample_df = df.copy()
+
+			sample_df['quantile'] = pd.qcut(sample_df[feature], q = 10, duplicates = 'drop')
+
+			sample_df = sample_df\
+				.groupby('quantile')\
+				.apply(lambda x:x.sample(int(np.ceil(x.shape[0] * frac_sample))))\
+				.reset_index(drop = True)\
+				.drop('quantile', axis = 1)
+
 		if self.trace:
-		    print(f"quantile {quantile}")
+			print(f"Sample df has {sample_df.shape[0]} observations, {sample_df.shape[0]/num_obs}% of the observations in the original df.")
 
-		# create labels and bins for quantiles
-		bins, labels = [0, .25, .5, .75, 1.], ['q1', 'q2', 'q3', 'q4'],
-
-		# create col to get quantiles of x_j to not leave out portions of the dist'n of x
-		df['quantile'] = pd.qcut(df[feature], q = bins, labels = labels)
-		if self.trace:
-		    print(df['quantile'][:3])
-
-		# uniformly sample quantiles
-		out = pd.concat([df[df['quantile'].eq(label)].sample(int(quantile[i])) 
-		               for i, label in enumerate(labels)]).\
-		  drop(columns = ['quantile'])
-
-		return out
+		return sample_df
 
