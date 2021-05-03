@@ -99,10 +99,22 @@ class ICE():
 		
 		df['y_pred'] = preds
 
+		# Add on dydx for histogram and feature importance
+		df['dy'] = df\
+		    .groupby('obs')['y_pred']\
+		    .transform(lambda x:x - x.shift(1))
+
+		df['dx'] = df\
+		    .groupby('obs')[feature]\
+		    .transform(lambda x:x - x.shift(1))
+
+		df['dydx'] = df['dy'] / df['dx']
+		df['dydx_abs'] = np.abs(df['dydx'])
+
 		return df
 		
 
-	def plot_single_feature(self, feature, plot_num = 300):
+	def ice_plot_single_feature(self, feature, plot_num = 300):
 		'''
 		Plots the ICE chart for a single feature.
 		Can only be called after fitting for that feature.
@@ -154,7 +166,7 @@ class ICE():
 		return (fig, ax)
 
 
-	def plot(self, save_path, plot_num = 300, ncols = 3):
+	def ice_plot(self, save_path = None, plot_num = 300, ncols = 3):
 		'''
 		Plot all ICE plots in a grid
 		'''
@@ -165,7 +177,7 @@ class ICE():
 		all_features = np.sort(list(self.ice_dfs.keys()))
 
 		for i, feature in enumerate(all_features):
-		    plot_data = ice.ice_dfs[feature]
+		    plot_data = self.ice_dfs[feature]
 		    ob_sample = np.random.choice(plot_data.obs.unique(), 
 		                               size = plot_num, replace = False)
 
@@ -203,9 +215,79 @@ class ICE():
 		fig.legend(handles, labels, loc='lower center', borderaxespad = 0.5, borderpad = 0.5)
 		plt.tight_layout()
 
-		fig.savefig(save_path, 
-		            bbox_inches = 'tight',
-		            pad_inches = 1)
+		if save_path is not None:
+			fig.savefig(save_path, 
+		            	bbox_inches = 'tight',
+		            	pad_inches = 1)
+
+	def feature_importance_hist(self, save_path = None, remove_zeros = True, ncols = 3, plot_num = 300):
+		'''
+		Plot all feature importance histograms in a grid
+		'''
+		if not self.fit_all:
+			raise Exception("Call `fit` method before trying to plot.")
+
+		fig, axs = plt.subplots(nrows = nrows, ncols = ncols, 
+								figsize = (5*ncols,1*num_plots), sharey = True)
+		all_features = np.sort(list(self.ice_dfs.keys()))
+
+		for i, feature in enumerate(all_features):
+		    plot_data = self.ice_dfs[feature]\
+		    	.loc[:,['dydx']]\
+		    	.dropna(how = 'any')
+
+		    if remove_zeros:
+		    	plot_data = plot_data\
+		    		.loc[lambda x:x.dydx != 0]
+
+		    axs[int(i/3),i%3].hist(plot_data['dydx'])
+
+		    axs[int(i/3),i%3].set_xlabel(feature, fontsize=10)
+
+		# fig.subplots_adjust(hspace=.5)
+		plt.tight_layout()
+
+		if save_path is not None:
+			fig.savefig(save_path,
+					 	bbox_inches = 'tight',
+					 	pad_inches = 1)
+
+	def feature_importance_table(self):
+		if not self.fit_all:
+			raise Exception("Call `fit` method before trying to plot.")
+
+		all_features = np.sort(list(self.ice_dfs.keys()))
+		fi_mean = []
+		fi_abs_mean = []
+		fi_sd = []
+		fi_mean_normalized = []
+		fi_abs_mean_normalized = []
+
+		for i, feature in enumerate(all_features):
+			df = self.ice_dfs[feature]
+			fi_mean.append(np.mean(df.dydx))
+			fi_abs_mean.append(np.mean(df.dydx_abs))
+			fi_sd.append(np.std(df.dydx))
+			fi_mean_normalized.append(np.mean(df.dydx) * np.std(df[feature]))
+			fi_abs_mean_normalized.append(np.mean(df.dydx_abs) * np.std(df[feature]))
+
+		fi_df = pd.DataFrame({
+			'feature':all_features,
+			'Mean':fi_mean,
+			'Mean Abs':fi_abs_mean,
+			'St. Dev.':fi_sd,
+			'Normalized Mean':fi_mean_normalized,
+			'Normalized Absolute Mean':fi_abs_mean_normalized
+		})\
+
+		fi_var = 'Normalized Absolute Mean'
+
+		fi_df['Feature Importance'] = fi_df[fi_var]/fi_df[fi_var].sum()*100
+
+		fi_df = fi_df.fillna(0)
+
+		return fi_df
+
 
 
 	def uniform_sample(self, df, feature, frac_sample):
