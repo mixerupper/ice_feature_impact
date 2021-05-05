@@ -58,7 +58,7 @@ class ICE():
 		start = datetime.now()
 
 		self.ice_dfs[feature] = self.ice_single_feature(X, model, feature)
-		
+
 		end = datetime.now()
 		print(f"Fit {feature} in {(end - start).seconds} seconds")
 
@@ -92,11 +92,11 @@ class ICE():
 			df = df.append(temp_df, ignore_index = True)
 
 		# get predictions
-		if self.model_type == "binary":    
+		if self.model_type == "binary":
 		  preds = model.predict_proba(df.drop('obs', axis = 1))[:,1]
 		else:
 		  preds = model.predict(df.drop('obs', axis = 1))
-		
+
 		df['y_pred'] = preds
 
 		# Add on dydx for histogram and feature importance
@@ -112,7 +112,7 @@ class ICE():
 		df['dydx_abs'] = np.abs(df['dydx'])
 
 		return df
-		
+
 
 	def ice_plot_single_feature(self, feature, plot_num = 300):
 		'''
@@ -124,8 +124,8 @@ class ICE():
 		plot_single_feature('Age', plot_num = 500)
 		'''
 		plot_data = self.ice_dfs[feature]
-		
-		ob_sample = np.random.choice(plot_data.obs.unique(), 
+
+		ob_sample = np.random.choice(plot_data.obs.unique(),
 		                           size = plot_num, replace = False)
 
 		ob_sample = np.append(ob_sample, [-1])
@@ -157,7 +157,7 @@ class ICE():
 			    color = "red"
 			    label = "Mean line"
 			ax.plot(feature, 'y_pred', label = label, alpha = alpha, data = d, color = color)
-		
+
 		ax.set_title('{} ICE Plot'.format(feature), fontsize=18)
 		ax.set_xlabel(feature, fontsize=18)
 		ax.set_ylabel('Predicted Probability', fontsize=16)
@@ -173,12 +173,13 @@ class ICE():
 		if not self.fit_all:
 			raise Exception("Call `fit` method before trying to plot. You can also call `plot_single_feature`.")
 
+		nrows, num_plots = int(np.ceil(len(self.ice_dfs.keys()) / ncols)), len(self.ice_dfs.keys())
 		fig, axs = plt.subplots(nrows = nrows, ncols = ncols, figsize = (5*ncols,1*num_plots))
 		all_features = np.sort(list(self.ice_dfs.keys()))
 
 		for i, feature in enumerate(all_features):
 		    plot_data = self.ice_dfs[feature]
-		    ob_sample = np.random.choice(plot_data.obs.unique(), 
+		    ob_sample = np.random.choice(plot_data.obs.unique(),
 		                               size = plot_num, replace = False)
 
 		    ob_sample = np.append(ob_sample, [-1])
@@ -216,7 +217,7 @@ class ICE():
 		plt.tight_layout()
 
 		if save_path is not None:
-			fig.savefig(save_path, 
+			fig.savefig(save_path,
 		            	bbox_inches = 'tight',
 		            	pad_inches = 1)
 
@@ -227,7 +228,9 @@ class ICE():
 		if not self.fit_all:
 			raise Exception("Call `fit` method before trying to plot.")
 
-		fig, axs = plt.subplots(nrows = nrows, ncols = ncols, 
+		nrows, num_plots = int(np.ceil(len(self.ice_dfs.keys())/ ncols)), len(self.ice_dfs.keys())
+
+		fig, axs = plt.subplots(nrows = nrows, ncols = ncols,
 								figsize = (5*ncols,1*num_plots), sharey = True)
 		all_features = np.sort(list(self.ice_dfs.keys()))
 
@@ -292,14 +295,14 @@ class ICE():
 
 	def uniform_sample(self, df, feature, frac_sample):
 		'''
-		Uniformly sample across quantiles of feature to ensure not to leave out 
+		Uniformly sample across quantiles of feature to ensure not to leave out
 		portions of the dist of the feature.
 		@param df : Covariate matrix.
 		@param feature : Target covariate bin.
 		@examples
 		uniform_sample(df, 'Age')
 		'''
-		
+
 		# Determine if categorical or continuous
 		num_obs = df.shape[0]
 		num_unique_feature_values = len(df[feature].unique())
@@ -333,4 +336,3 @@ class ICE():
 			print(f"Sample df has {sample_df.shape[0]} observations, {sample_df.shape[0]/num_obs}% of the observations in the original df.")
 
 		return sample_df
-
