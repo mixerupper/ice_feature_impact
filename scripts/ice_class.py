@@ -160,7 +160,14 @@ class ICE():
 
 		ax.set_title('{} ICE Plot'.format(feature), fontsize=18)
 		ax.set_xlabel(feature, fontsize=18)
-		ax.set_ylabel('Predicted Probability', fontsize=16)
+
+		if self.model_type == 'binary':
+			ax.set_ylabel('Predicted Probability', fontsize=16)
+		elif self.model_type == 'continuous':
+			ax.set_ylabel('Target', fontsize=16)
+		else:
+			raise ValueError
+
 		ax.legend()
 
 		return (fig, ax)
@@ -275,7 +282,7 @@ class ICE():
 			fi_abs_mean_normalized.append(np.mean(df.dydx_abs) * np.std(df[feature]))
 
 		fi_df = pd.DataFrame({
-			'feature':all_features,
+			'Feature':all_features,
 			'Mean':fi_mean,
 			'Mean Abs':fi_abs_mean,
 			'St. Dev.':fi_sd,
