@@ -181,8 +181,15 @@ class ICE():
 			raise Exception("Call `fit` method before trying to plot. You can also call `plot_single_feature`.")
 
 		nrows, num_plots = int(np.ceil(len(self.ice_dfs.keys()) / ncols)), len(self.ice_dfs.keys())
-		fig, axs = plt.subplots(nrows = nrows, ncols = ncols, figsize = (5*ncols,1*num_plots))
 		all_features = np.sort(list(self.ice_dfs.keys()))
+
+		if nrows == 1:
+			ncols = num_plots
+
+		fig, axs = plt.subplots(nrows = nrows, ncols = ncols, figsize = (5*ncols,1*num_plots))
+
+		if self.trace:
+			print(f"Num rows: {nrows}, Num columns: {ncols}, Num plots: {num_plots}")
 
 		for i, feature in enumerate(all_features):
 		    plot_data = self.ice_dfs[feature]
@@ -204,6 +211,9 @@ class ICE():
 		        .append(mean_line, ignore_index = True)
 
 		    # plot ICE
+		    if self.trace:
+		    	print(f"Plotting for {feature}")
+
 		    for ob in ob_sample:
 		        d = plot_sub_data.loc[lambda x:x.obs == ob]
 		        if max(d.mean_line) == 0:
@@ -214,11 +224,23 @@ class ICE():
 		            alpha = 5
 		            color = "red"
 		            label = "Mean line"
-		        axs[int(i/3),i%3].plot(feature, 'y_pred', label = label, alpha = alpha, data = d, color = color)
 
-		    axs[int(i/3),i%3].set_xlabel(feature, fontsize=10)
+		        if nrows == 1:
+		        	axs[i].plot(feature, 'y_pred', label = label, alpha = alpha, 
+		        		data = d, color = color)
+		        else:
+		        	axs[int(i/ncols),i%ncols].plot(feature, 'y_pred', label = label, alpha = alpha, 
+		        		data = d, color = color)
 
-		handles, labels = axs[0,0].get_legend_handles_labels()
+		    if nrows == 1:
+		    	axs[i].set_xlabel(feature, fontsize=10)
+		    else:
+		    	axs[int(i/ncols),i%ncols].set_xlabel(feature, fontsize=10)
+
+		if nrows == 1:
+			handles, labels = axs[0].get_legend_handles_labels()
+		else:
+			handles, labels = axs[0,0].get_legend_handles_labels()
 		# fig.subplots_adjust(hspace=.5)
 		fig.legend(handles, labels, loc='lower center', borderaxespad = 0.5, borderpad = 0.5)
 		plt.tight_layout()
@@ -236,10 +258,13 @@ class ICE():
 			raise Exception("Call `fit` method before trying to plot.")
 
 		nrows, num_plots = int(np.ceil(len(self.ice_dfs.keys())/ ncols)), len(self.ice_dfs.keys())
-
-		fig, axs = plt.subplots(nrows = nrows, ncols = ncols,
-								figsize = (5*ncols,1*num_plots), sharey = True)
 		all_features = np.sort(list(self.ice_dfs.keys()))
+
+		if nrows == 1:
+			ncols = num_plots
+
+		fig, axs = plt.subplots(nrows = nrows, ncols = ncols, 
+			figsize = (5*ncols,1*num_plots), sharey = True)
 
 		for i, feature in enumerate(all_features):
 		    plot_data = self.ice_dfs[feature]\
@@ -249,10 +274,12 @@ class ICE():
 		    if remove_zeros:
 		    	plot_data = plot_data\
 		    		.loc[lambda x:x.dydx != 0]
-
-		    axs[int(i/3),i%3].hist(plot_data['dydx'])
-
-		    axs[int(i/3),i%3].set_xlabel(feature, fontsize=10)
+		    if nrows == 1:
+		    	axs[i].hist(plot_data['dydx'])
+		    	axs[i].set_xlabel(feature, fontsize=10)
+		    else:
+			    axs[int(i/3),i%3].hist(plot_data['dydx'])
+			    axs[int(i/3),i%3].set_xlabel(feature, fontsize=10)
 
 		# fig.subplots_adjust(hspace=.5)
 		plt.tight_layout()
