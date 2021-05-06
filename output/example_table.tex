@@ -1,0 +1,58 @@
+\documentclass{article}
+
+\usepackage{amsmath}
+\usepackage{comment}
+\usepackage{float}
+\usepackage{amssymb}
+\usepackage{indentfirst}
+\usepackage{bbm}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage[top=1cm, bottom=4cm, left=2cm, right=2cm]{geometry}
+\renewcommand{\thesubsection}{\thesection.\alph{subsection}}
+
+\begin{document}
+
+\begin{tabular}{llrrrrrr}
+\toprule
+{} &                             Feature &   Mean &  Mean Abs &  St. Dev. &  Norm Mean Abs &      FI &   RF FI \\
+\midrule
+7  &     Hormonal Contraceptives (years) &  0.007 &     0.019 &     0.040 &          0.126 &  13.278 &  14.886 \\
+0  &                                 Age &  0.001 &     0.005 &     0.012 &          0.101 &  10.701 &  17.790 \\
+5  &            First sexual intercourse &  0.003 &     0.014 &     0.040 &          0.079 &   8.289 &  12.803 \\
+31 &                      Smokes (years) &  0.004 &     0.006 &     0.015 &          0.069 &   7.320 &   4.223 \\
+23 &                 STDs:genital herpes &  0.171 &     0.174 &     0.883 &          0.052 &   5.467 &   0.955 \\
+10 &                  Num of pregnancies &  0.002 &     0.014 &     0.061 &          0.046 &   4.883 &  10.244 \\
+3  &                           Dx:Cancer &  0.139 &     0.146 &     0.837 &          0.044 &   4.590 &   1.646 \\
+1  &                                  Dx &  0.134 &     0.145 &     0.907 &          0.043 &   4.564 &   1.798 \\
+30 &                 Smokes (packs/year) &  0.002 &     0.004 &     0.012 &          0.043 &   4.516 &   3.328 \\
+2  &                              Dx:CIN &  0.137 &     0.141 &     0.857 &          0.042 &   4.451 &   1.225 \\
+11 &           Number of sexual partners &  0.000 &     0.009 &     0.043 &          0.039 &   4.109 &   9.851 \\
+4  &                              Dx:HPV &  0.115 &     0.123 &     0.717 &          0.037 &   3.875 &   1.615 \\
+9  &                         IUD (years) &  0.001 &     0.005 &     0.015 &          0.030 &   3.179 &   3.622 \\
+15 &    STDs: Time since first diagnosis & -0.001 &     0.004 &     0.011 &          0.027 &   2.838 &   1.844 \\
+16 &     STDs: Time since last diagnosis & -0.000 &     0.004 &     0.009 &          0.023 &   2.455 &   1.718 \\
+18 &                            STDs:HIV &  0.051 &     0.061 &     0.335 &          0.018 &   1.925 &   1.197 \\
+8  &                                 IUD &  0.000 &     0.061 &     0.296 &          0.018 &   1.920 &   2.180 \\
+28 &  STDs:vulvo-perineal condylomatosis &  0.051 &     0.060 &     0.260 &          0.018 &   1.879 &   0.728 \\
+13 &                       STDs (number) &  0.009 &     0.014 &     0.048 &          0.017 &   1.741 &   1.058 \\
+22 &                 STDs:condylomatosis &  0.038 &     0.046 &     0.197 &          0.014 &   1.464 &   0.621 \\
+6  &             Hormonal Contraceptives &  0.011 &     0.043 &     0.292 &          0.013 &   1.341 &   2.821 \\
+29 &                              Smokes &  0.000 &     0.040 &     0.227 &          0.012 &   1.264 &   1.484 \\
+12 &                                STDs &  0.020 &     0.034 &     0.166 &          0.010 &   1.062 &   0.575 \\
+14 &           STDs: Number of diagnosis &  0.003 &     0.007 &     0.051 &          0.006 &   0.678 &   0.571 \\
+26 &                       STDs:syphilis & -0.001 &     0.015 &     0.120 &          0.005 &   0.481 &   0.414 \\
+27 &         STDs:vaginal condylomatosis &  0.007 &     0.014 &     0.096 &          0.004 &   0.438 &   0.197 \\
+19 &                            STDs:HPV &  0.009 &     0.013 &     0.095 &          0.004 &   0.416 &   0.190 \\
+20 &                    STDs:Hepatitis B &  0.008 &     0.011 &     0.073 &          0.003 &   0.331 &   0.135 \\
+25 &    STDs:pelvic inflammatory disease &  0.006 &     0.009 &     0.068 &          0.003 &   0.283 &   0.131 \\
+24 &          STDs:molluscum contagiosum &  0.004 &     0.008 &     0.062 &          0.003 &   0.265 &   0.149 \\
+17 &                           STDs:AIDS &  0.000 &     0.000 &     0.000 &          0.000 &   0.000 &   0.000 \\
+21 &        STDs:cervical condylomatosis &  0.000 &     0.000 &     0.000 &          0.000 &   0.000 &   0.000 \\
+\bottomrule
+\end{tabular}
+
+\end{document}
+
+
+
