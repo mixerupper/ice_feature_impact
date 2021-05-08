@@ -80,6 +80,8 @@ class ICE():
 		feature_range = np.linspace(feature_min, feature_max, num = self.num_per_ob)
 
 		df = pd.DataFrame()
+        
+        
 
 		for i in X.index:
 			# make temp df for each instance
@@ -87,8 +89,9 @@ class ICE():
 				.copy()\
 				.reset_index(drop = True)
 			temp_df[feature] = feature_range
-			temp_df['obs'] = i
 
+			temp_df = temp_df.append(X.iloc[i,:]) # append in-sample instance to temp_df for plotting
+			temp_df['obs'] = i
 			df = df.append(temp_df, ignore_index = True)
 
 		# get predictions
@@ -114,15 +117,18 @@ class ICE():
 		return df
 
 
-	def ice_plot_single_feature(self, feature, plot_num = 300):
+	def ice_plot_single_feature(self, model, feature, in_sample = True, plot_num = 300):
 		'''
 		Plots the ICE chart for a single feature.
 		Can only be called after fitting for that feature.
+		@param model : Model to interpet
 		@param feature : Target covariate to plot.
 		@param plot_num : Number of lines to plot.
+		@param in_sample : Show in-sample data points.
 		@examples
 		plot_single_feature('Age', plot_num = 500)
 		'''
+        
 		plot_data = self.ice_dfs[feature]
 
 		ob_sample = np.random.choice(plot_data.obs.unique(),
@@ -144,6 +150,7 @@ class ICE():
 
 		# set fig size
 		fig, ax = plt.subplots()
+       
 
 		# plot ICE
 		for ob in ob_sample:
@@ -156,10 +163,17 @@ class ICE():
 			    alpha = 5
 			    color = "red"
 			    label = "Mean line"
+            
+			d = d.sort_values(feature) # sort values by feature for plotting
 			ax.plot(feature, 'y_pred', label = label, alpha = alpha, data = d, color = color)
+            
+		if in_sample == True:
+			for item in ob_sample[:-1]:
+				ax.scatter(np.array(plot_sub_data[plot_sub_data.obs==item][feature])[-1], model.predict_proba(np.array(plot_sub_data[plot_sub_data.obs==item].iloc[-1,:-7]).reshape(1,-1))[:,1],c="green")
 
 		ax.set_title('{} ICE Plot'.format(feature), fontsize=18)
 		ax.set_xlabel(feature, fontsize=18)
+		ax.set_ylim((0,1))
 
 		if self.model_type == 'binary':
 			ax.set_ylabel('Predicted Probability', fontsize=16)
@@ -168,12 +182,14 @@ class ICE():
 		else:
 			raise ValueError
 
+
+
 		ax.legend()
 
 		return (fig, ax)
 
 
-	def ice_plot(self, save_path = None, plot_num = 300, ncols = 3):
+	def ice_plot(self, model, save_path = None, plot_num = 300, in_sample = True, ncols = 3):
 		'''
 		Plot all ICE plots in a grid
 		'''
@@ -226,12 +242,24 @@ class ICE():
 		            label = "Mean line"
 
 		        if nrows == 1:
+		        	d = d.sort_values(feature)
 		        	axs[i].plot(feature, 'y_pred', label = label, alpha = alpha, 
 		        		data = d, color = color)
 		        else:
+		        	d = d.sort_values(feature)
 		        	axs[int(i/ncols),i%ncols].plot(feature, 'y_pred', label = label, alpha = alpha, 
 		        		data = d, color = color)
-
+             
+            
+		    if in_sample == True:
+		        if nrows == 1:
+		        	for item in ob_sample[:-1]:
+		        		axs[i].scatter(np.array(plot_sub_data[plot_sub_data.obs==item][feature])[-1], model.predict_proba(np.array(plot_sub_data[plot_sub_data.obs==item].iloc[-1,:-7]).reshape(1,-1))[:,1],c="green")
+		        else:
+		        	for item in ob_sample[:-1]:
+		        		axs[int(i/ncols),i%ncols].scatter(np.array(plot_sub_data[plot_sub_data.obs==item][feature])[-1], model.predict_proba(np.array(plot_sub_data[plot_sub_data.obs==item].iloc[-1,:-7]).reshape(1,-1))[:,1],c="green")
+                
+                
 		    if nrows == 1:
 		    	axs[i].set_xlabel(feature, fontsize=10)
 		    else:
@@ -370,3 +398,5 @@ class ICE():
 			print(f"Sample df has {sample_df.shape[0]} observations, {sample_df.shape[0]/num_obs}% of the observations in the original df.")
 
 		return sample_df
+
+
