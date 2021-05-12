@@ -32,13 +32,6 @@ class ICE():
 		'''
 
 		self.features = list(X.columns)
-		self.data = X.copy()
-
-		# get predictions
-		if self.model_type == "binary":
-		  self.data['y_pred'] = model.predict_proba(X)[:,1]
-		else:
-		  self.data['y_pred'] = model.predict(X)
 
 		for feature in X:
 			try:
@@ -65,12 +58,6 @@ class ICE():
 		start = datetime.now()
 
 		self.ice_dfs[feature] = self.ice_single_feature(X, model, feature)
-		self.data = X.copy()
-
-		if self.model_type == "binary":
-		  self.data['y_pred'] = model.predict_proba(X)[:,1]
-		else:
-		  self.data['y_pred'] = model.predict(X)
 
 		end = datetime.now()
 		print(f"Fit {feature} in {(end - start).seconds} seconds")
@@ -92,27 +79,33 @@ class ICE():
 		feature_max = np.max(X[feature])
 		feature_range = np.linspace(feature_min, feature_max, num = self.num_per_ob)
 
-		df = X.loc[np.repeat(X.index, self.num_per_ob)]
-		df['orig_'+feature] = df[feature]
-		df['obs'] = df.index
-		df[feature] = np.tile(feature_range, len(X.index))
+		df = pd.DataFrame()
+        
+        
+
+		for i in X.index:
+			# make temp df for each instance
+			temp_df = X.loc[np.repeat(i, self.num_per_ob)]\
+				.copy()\
+				.reset_index(drop = True)
+			temp_df[feature] = feature_range
+
+			temp_df = temp_df.append(X.iloc[i,:]) # append in-sample instance to temp_df for plotting
+			temp_df['obs'] = i
+			df = df.append(temp_df, ignore_index = True)
+
+		df = df\
+			.sort_values(['obs', feature])
 
 		# get predictions
 		if self.model_type == "binary":
-		  preds = model.predict_proba(
-		  	df.drop(['obs', 'orig_'+feature], axis = 1))[:,1]
+		  preds = model.predict_proba(df.drop('obs', axis = 1))[:,1]
 		else:
-		  preds = model.predict(df.drop(['obs', 'orig_'+feature], axis = 1))
+		  preds = model.predict(df.drop('obs', axis = 1))
 
 		df['y_pred'] = preds
 
 		# Add on dydx for histogram and feature importance
-		# TODO: Deal with case where these names collide with existing feature names.
-		df['feature_distance'] = np.abs(df[feature] - df['orig_'+feature])
-		# df['closest_to_orig'] = df\
-		# 	.groupby('obs')['feature_distance']\
-		# 	.transform(lambda x:x == min(x))
-
 		df['dy'] = df\
 		    .groupby('obs')['y_pred']\
 		    .transform(lambda x:x - x.shift(1))
@@ -127,15 +120,17 @@ class ICE():
 		return df
 
 
-	def ice_plot_single_feature(self, feature, plot_num = 300):
+	def ice_plot_single_feature(self, feature, in_sample = True, plot_num = 300):
 		'''
 		Plots the ICE chart for a single feature.
 		Can only be called after fitting for that feature.
 		@param feature : Target covariate to plot.
 		@param plot_num : Number of lines to plot.
+		@param in_sample : Show in-sample data points.
 		@examples
 		plot_single_feature('Age', plot_num = 500)
 		'''
+        
 		plot_data = self.ice_dfs[feature]
 
 		orig_ob_sample = np.random.choice(plot_data.obs.unique(),
@@ -157,33 +152,29 @@ class ICE():
 
 		# set fig size
 		fig, ax = plt.subplots()
+       
 
 		# plot ICE
 		for ob in ob_sample:
 			d = plot_sub_data.loc[lambda x:x.obs == ob]
-			d_close = None
-
 			if max(d.mean_line) == 0:
 			    alpha = 0.1
 			    color = "black"
 			    label = ""
-			    ls = "--"
-			    d_close = d.loc[lambda x:x.feature_distance <= 0.5*np.std(d[feature])]
 			elif max(d.mean_line) == 1:
 			    alpha = 5
 			    color = "red"
 			    label = "Mean line"
-			    ls = "-"
-			ax.plot(feature, 'y_pred', label = label, alpha = alpha, 
-				data = d, color = color, ls = ls)
-			if d_close is not None:
-				ax.plot(feature, 'y_pred', label = label, alpha = alpha*2, 
-					data = d_close, color = color, ls = "-")
-
-		# ax.scatter(self.data.loc[orig_ob_sample, feature], self.data.loc[orig_ob_sample, 'y_pred'], color = 'green', alpha = 0.5)
+            
+			d = d.sort_values(feature) # sort values by feature for plotting
+			ax.plot(feature, 'y_pred', label = label, alpha = alpha, data = d, color = color)
+            
+		if in_sample == True:
+			ax.scatter(plot_sub_data.loc[orig_ob_sample, feature], plot_sub_data.loc[orig_ob_sample, feature],c="green")
 
 		ax.set_title('{} ICE Plot'.format(feature), fontsize=18)
 		ax.set_xlabel(feature, fontsize=18)
+		ax.set_ylim((0,1))
 
 		if self.model_type == 'binary':
 			ax.set_ylabel('Predicted Probability', fontsize=16)
@@ -192,12 +183,14 @@ class ICE():
 		else:
 			raise ValueError
 
+
+
 		ax.legend()
 
 		return (fig, ax)
 
 
-	def ice_plot(self, save_path = None, plot_num = 300, ncols = 3):
+	def ice_plot(self, model, save_path = None, plot_num = 300, in_sample = True, ncols = 3):
 		'''
 		Plot all ICE plots in a grid
 		'''
@@ -250,12 +243,24 @@ class ICE():
 		            label = "Mean line"
 
 		        if nrows == 1:
+		        	d = d.sort_values(feature)
 		        	axs[i].plot(feature, 'y_pred', label = label, alpha = alpha, 
 		        		data = d, color = color)
 		        else:
+		        	d = d.sort_values(feature)
 		        	axs[int(i/ncols),i%ncols].plot(feature, 'y_pred', label = label, alpha = alpha, 
 		        		data = d, color = color)
-
+             
+            
+		    if in_sample == True:
+		        if nrows == 1:
+		        	for item in ob_sample[:-1]:
+		        		axs[i].scatter(np.array(plot_sub_data[plot_sub_data.obs==item][feature])[-1], model.predict_proba(np.array(plot_sub_data[plot_sub_data.obs==item].iloc[-1,:-7]).reshape(1,-1))[:,1],c="green")
+		        else:
+		        	for item in ob_sample[:-1]:
+		        		axs[int(i/ncols),i%ncols].scatter(np.array(plot_sub_data[plot_sub_data.obs==item][feature])[-1], model.predict_proba(np.array(plot_sub_data[plot_sub_data.obs==item].iloc[-1,:-7]).reshape(1,-1))[:,1],c="green")
+                
+                
 		    if nrows == 1:
 		    	axs[i].set_xlabel(feature, fontsize=10)
 		    else:
@@ -394,3 +399,5 @@ class ICE():
 			print(f"Sample df has {sample_df.shape[0]} observations, {sample_df.shape[0]/num_obs}% of the observations in the original df.")
 
 		return sample_df
+
+
