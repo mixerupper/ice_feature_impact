@@ -43,9 +43,9 @@ class ICE():
 		for feature in X:
 			try:
 				start = datetime.now()
-				self.ice_dfs[feature] = self.ice_single_feature(X, model, feature)
+				self.ice_dfs[feature] = self.ice_fit_helper(X, model, feature)
 				end = datetime.now()
-				print(f"Fit {feature} in {(end - start).seconds} seconds")
+				print(f"Fit {feature} in {(end - start).total_seconds():.2f} seconds")
 			except ValueError:
 				print(f"Could not fit {feature} because of ValueError")
 
@@ -64,7 +64,7 @@ class ICE():
 
 		start = datetime.now()
 
-		self.ice_dfs[feature] = self.ice_single_feature(X, model, feature)
+		self.ice_dfs[feature] = self.ice_fit_helper(X, model, feature)
 		self.data = X.copy()
 
 		if self.model_type == "binary":
@@ -73,11 +73,11 @@ class ICE():
 		  self.data['y_pred'] = model.predict(X)
 
 		end = datetime.now()
-		print(f"Fit {feature} in {(end - start).seconds} seconds")
+		print(f"Fit {feature} in {(end - start).total_seconds():.2f} seconds")
 
 
 
-	def ice_single_feature(self, X, model, feature):
+	def ice_fit_helper(self, X, model, feature, min_obs_per_feature = 10):
 		'''
 		Create ICE dataset for a single feature. Called by fit.
 		@param X : Covariate matrix
@@ -88,11 +88,19 @@ class ICE():
 		# uniformly sample
 		X = self.uniform_sample(X, feature, self.frac_sample)
 
-		feature_min = np.min(X[feature])
-		feature_max = np.max(X[feature])
-		feature_range = np.linspace(feature_min, feature_max, num = self.num_per_ob)
+		# feature_min = np.min(X[feature])
+		# feature_max = np.max(X[feature])
+		# feature_range = np.linspace(feature_min, feature_max, num = self.num_per_ob)
 
-		df = X.loc[np.repeat(X.index, self.num_per_ob)]
+		feature_range = np.sort(np.unique(X[feature]))
+
+		# 	additional_points = np.linspace(min(X[feature]), max(X[feature]), 
+		# 		num = min_obs_per_feature - len(feature_range) + 2)
+		# 	feature_range = np.append(feature_range, additional_points)
+		# 	feature_range = np.sort(np.unique(feature_range))
+
+
+		df = X.loc[np.repeat(X.index, len(feature_range))]
 		df['orig_'+feature] = df[feature]
 		df['obs'] = df.index
 		df[feature] = np.tile(feature_range, len(X.index))
@@ -105,6 +113,11 @@ class ICE():
 		  preds = model.predict(df.drop(['obs', 'orig_'+feature], axis = 1))
 
 		df['y_pred'] = preds
+
+		df['y_pred_centered'] = df\
+			.groupby('obs')['y_pred']\
+			.transform(lambda x:(x - x.shift(1)).cumsum())\
+			.fillna(0)
 
 		# Add on dydx for histogram and feature importance
 		# TODO: Deal with case where these names collide with existing feature names.
@@ -126,26 +139,43 @@ class ICE():
 
 		return df
 
-
-	def ice_plot_single_feature(self, feature, plot_num = 300):
+	def ice_plot_single_feature(self, feature, 
+		plot_num = 200, close_multiple = 0.5, mode = "ice"):
 		'''
 		Plots the ICE chart for a single feature.
 		Can only be called after fitting for that feature.
 		@param feature : Target covariate to plot.
 		@param plot_num : Number of lines to plot.
+		@param close_multiple : Mark parts of the line within close_multiple
+								times standard deviation of feature as "close"
+								with a solid line
+		@param mode: ice|d-ice|c-ice
 		@examples
 		plot_single_feature('Age', plot_num = 500)
 		'''
+		start = datetime.now()
+		
 		plot_data = self.ice_dfs[feature]
 
-		orig_ob_sample = np.random.choice(plot_data.obs.unique(),
-		                           size = plot_num, replace = False)
+		unique_features = plot_data[feature].unique()
+		if len(unique_features) > 10:
+			feature_continuous = True
+		else:
+			feature_continuous = False
 
-		ob_sample = np.append(orig_ob_sample, [-1])
+		y_var = np.select(
+			[mode == "ice",
+			 mode == "d-ice",
+			 mode == "c-ice"],
+			["y_pred", "dydx", "y_pred_centered"]).item()
+
+		unique_obs = plot_data.obs.unique()
+		ob_sample = np.random.choice(unique_obs, 
+			size = min(len(unique_obs), plot_num), replace = False)
 
 		mean_line = plot_data\
 			.groupby(feature)\
-			.agg(y_pred = ('y_pred', 'mean'))\
+			.agg(y_pred = (y_var, 'mean'))\
 			.reset_index()\
 			.assign(obs = -1,
 			        mean_line = 1)
@@ -158,46 +188,30 @@ class ICE():
 		# set fig size
 		fig, ax = plt.subplots()
 
+		end = datetime.now()
+		print(f"Preprocessed data in {(end - start).total_seconds():.2f} seconds")
+
 		# plot ICE
-		for ob in ob_sample:
-			d = plot_sub_data.loc[lambda x:x.obs == ob]
-			d_close = None
+		start = datetime.now()
+		self.ice_plot_helper(plot_data = plot_sub_data, ax = ax, 
+			feature = feature, y_var = y_var,plot_close = feature_continuous)
+		
+		handles, labels = ax.get_legend_handles_labels()
 
-			if max(d.mean_line) == 0:
-			    alpha = 0.1
-			    color = "black"
-			    label = ""
-			    ls = "--"
-			    d_close = d.loc[lambda x:x.feature_distance <= 0.5*np.std(d[feature])]
-			elif max(d.mean_line) == 1:
-			    alpha = 5
-			    color = "red"
-			    label = "Mean line"
-			    ls = "-"
-			ax.plot(feature, 'y_pred', label = label, alpha = alpha, 
-				data = d, color = color, ls = ls)
-			if d_close is not None:
-				ax.plot(feature, 'y_pred', label = label, alpha = alpha*2, 
-					data = d_close, color = color, ls = "-")
+		unique_labels, i = np.unique(labels, return_index = True)
+		unique_handles = np.array(handles)[i]
 
-		# ax.scatter(self.data.loc[orig_ob_sample, feature], self.data.loc[orig_ob_sample, 'y_pred'], color = 'green', alpha = 0.5)
+		ax.legend(unique_handles, unique_labels, 
+			 	  markerscale = 0.6, fontsize = 'x-small')
 
-		ax.set_title('{} ICE Plot'.format(feature), fontsize=18)
-		ax.set_xlabel(feature, fontsize=18)
+		end = datetime.now()
+		print(f"Plotted in {(end - start).total_seconds():.2f} seconds")
 
-		if self.model_type == 'binary':
-			ax.set_ylabel('Predicted Probability', fontsize=16)
-		elif self.model_type == 'continuous':
-			ax.set_ylabel('Target', fontsize=16)
-		else:
-			raise ValueError
+		return
+		# return (ax, fig)
 
-		ax.legend()
-
-		return (fig, ax)
-
-
-	def ice_plot(self, save_path = None, plot_num = 300, ncols = 3):
+	def ice_plot(self, save_path = None, 
+		plot_num = 200, ncols = 3, mode = "ice"):
 		'''
 		Plot all ICE plots in a grid
 		'''
@@ -206,6 +220,12 @@ class ICE():
 
 		nrows, num_plots = int(np.ceil(len(self.ice_dfs.keys()) / ncols)), len(self.ice_dfs.keys())
 		all_features = np.sort(list(self.ice_dfs.keys()))
+
+		y_var = np.select(
+			[mode == "ice",
+			 mode == "d-ice",
+			 mode == "c-ice"],
+			["y_pred", "dydx", "y_pred_centered"]).item()
 
 		if nrows == 1:
 			ncols = num_plots
@@ -217,62 +237,126 @@ class ICE():
 
 		for i, feature in enumerate(all_features):
 		    plot_data = self.ice_dfs[feature]
-		    ob_sample = np.random.choice(plot_data.obs.unique(),
-		                               size = plot_num, replace = False)
+		    unique_features = plot_data[feature].unique()
+		    if len(unique_features) >= 10:
+		    	feature_continuous = True
+		    else:
+		    	feature_continuous = False
 
-		    ob_sample = np.append(ob_sample, [-1])
+		    unique_obs = plot_data.obs.unique()
+		    ob_sample = np.random.choice(plot_data.obs.unique(),
+		    	size = min(len(unique_obs), plot_num), replace = False)
 
 		    mean_line = plot_data\
-		        .groupby(feature)\
-		        .agg(y_pred = ('y_pred', 'mean'))\
-		        .reset_index()\
-		        .assign(obs = -1,
-		                mean_line = 1)
+				.groupby(feature)\
+				.agg(y_pred = (y_var, 'mean'))\
+				.reset_index()\
+				.assign(obs = -1,
+				        mean_line = 1)
 
 		    plot_sub_data = plot_data\
-		        .loc[lambda x:x.obs.isin(ob_sample)]\
-		        .assign(mean_line = 0)\
-		        .append(mean_line, ignore_index = True)
+				.loc[lambda x:x.obs.isin(ob_sample)]\
+				.assign(mean_line = 0)\
+				.append(mean_line, ignore_index = True)
 
 		    # plot ICE
 		    if self.trace:
 		    	print(f"Plotting for {feature}")
 
-		    for ob in ob_sample:
-		        d = plot_sub_data.loc[lambda x:x.obs == ob]
-		        if max(d.mean_line) == 0:
-		            alpha = 0.1
-		            color = "black"
-		            label = ""
-		        elif max(d.mean_line) == 1:
-		            alpha = 5
-		            color = "red"
-		            label = "Mean line"
-
-		        if nrows == 1:
-		        	axs[i].plot(feature, 'y_pred', label = label, alpha = alpha, 
-		        		data = d, color = color)
-		        else:
-		        	axs[int(i/ncols),i%ncols].plot(feature, 'y_pred', label = label, alpha = alpha, 
-		        		data = d, color = color)
-
 		    if nrows == 1:
-		    	axs[i].set_xlabel(feature, fontsize=10)
+		    	self.ice_plot_helper(plot_data = plot_sub_data,
+		    		ax = axs[i], feature = feature, 
+		    		y_var = y_var,
+		    		plot_close = feature_continuous)
 		    else:
-		    	axs[int(i/ncols),i%ncols].set_xlabel(feature, fontsize=10)
+	        	self.ice_plot_helper(plot_data = plot_sub_data,
+		    		ax = axs[int(i/ncols),i%ncols], feature = feature,
+		    		y_var = y_var,
+		    		plot_close = feature_continuous)
 
 		if nrows == 1:
 			handles, labels = axs[0].get_legend_handles_labels()
 		else:
 			handles, labels = axs[0,0].get_legend_handles_labels()
+
+		unique_labels, i = np.unique(labels, return_index = True)
+		unique_handles = np.array(handles)[i]
+
 		# fig.subplots_adjust(hspace=.5)
-		fig.legend(handles, labels, loc='lower center', borderaxespad = 0.5, borderpad = 0.5)
+		fig.legend(unique_handles, unique_labels, 
+			loc='lower center', borderaxespad = 0.5, borderpad = 0.5)
 		plt.tight_layout()
 
 		if save_path is not None:
 			fig.savefig(save_path,
 		            	bbox_inches = 'tight',
 		            	pad_inches = 1)
+
+	def ice_plot_helper(self, plot_data, ax, feature, y_var,
+		plot_mean = True, plot_points = True, plot_close = True,
+		close_multiple = 0.5, axis_font_size = 10):
+		'''
+		Given the 'obs' column in @plot_data, plot the ICE plot onto @ax.
+		@param plot_data: Dataset to plot with 'obs', @feature, 
+			'feature_distance,' and 'y_pred' columns
+		@param ax: Plot axis object
+		@param feature: Feature to make ICE plot of
+		@param plot_mean: whether to plot the mean line
+		@param plot_points: Whether to plot a scatterplot of original data
+		@param close_multiple: Multiple of standard deviation to be "close"
+			to original data point
+		@param axis_font_size: Font size of x- and y-labels
+		'''
+
+		unique_obs = plot_data.obs.unique()
+		unique_obs = unique_obs[unique_obs != -1]
+		close_radius = close_multiple*np.std(plot_data[feature])
+
+		# Plot observation lines
+		for ob in unique_obs:
+			d = plot_data.loc[lambda x:x.obs == ob]
+			
+			if plot_close:
+				d_close = d.loc[lambda x:x.feature_distance <= close_radius]
+				ax.plot(feature, y_var, 
+					label = "Full range", 
+					alpha = 0.3, data = d, color = "grey", ls = "--")
+				ax.plot(feature, y_var, 
+					label = fr'Close: $\pm {close_multiple} \sigma$', 
+					alpha = 0.3, data = d_close, color = "black", ls = "-")
+			else:
+				ax.plot(feature, y_var, 
+					label = fr'Close: $\pm {close_multiple} \sigma$', 
+					alpha = 0.3, data = d, color = "black", ls = "-")
+
+		# Plot mean line
+		if plot_mean:
+			d = plot_data.loc[lambda x:x.obs == -1]
+			ax.plot(feature, y_var, label = "Mean line", alpha = 5, 
+				data = d, color = "gold", ls = "-")
+
+		# Plot scatterplot of points
+		if plot_points:
+			point_data = plot_data\
+				.loc[lambda x:x.feature_distance == 0]\
+
+			ax.scatter(point_data[feature], 
+				   point_data[y_var], 
+				   color = 'green', 
+				   alpha = 0.5,
+				   label = "Original data")
+
+		ax.set_xlabel(feature, fontsize=axis_font_size)
+
+		if self.model_type == 'binary':
+			ax.set_ylabel('Predicted Probability', fontsize=axis_font_size)
+		elif self.model_type == 'continuous':
+			ax.set_ylabel('Target', fontsize=axis_font_size)
+		else:
+			raise ValueError
+
+
+		return ax
 
 	def feature_importance_hist(self, save_path = None, remove_zeros = True, ncols = 3, plot_num = 300):
 		'''
@@ -313,7 +397,7 @@ class ICE():
 					 	bbox_inches = 'tight',
 					 	pad_inches = 1)
 
-	def feature_importance_table(self):
+	def feature_impact_table(self):
 		if not self.fit_all:
 			raise Exception("Call `fit` method before trying to plot.")
 
@@ -343,7 +427,7 @@ class ICE():
 
 		fi_var = 'Normalized Absolute Mean'
 
-		fi_df['Feature Importance'] = fi_df[fi_var]/fi_df[fi_var].sum()*100
+		fi_df['Feature Impact'] = fi_df[fi_var]/fi_df[fi_var].sum()*100
 
 		fi_df = fi_df.fillna(0)
 
