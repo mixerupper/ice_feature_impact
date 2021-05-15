@@ -80,7 +80,8 @@ class ICE():
 
 
 
-	def ice_fit_helper(self, X, model, feature, min_obs_per_feature = 10):
+	def ice_fit_helper(self, X, model, feature, 
+					   min_obs_per_feature = 10, likelihood_smoothing = 0.25):
 		'''
 		Create ICE dataset for a single feature. Called by fit.
 		@param X : Covariate matrix
@@ -128,9 +129,16 @@ class ICE():
 		df['original_point'] = (df['feature_distance'] == 0)*1
 		
 		# Add likelihood on phantom/real obs based on logistic regression
-		logr = LogisticRegression(class_weight = 'balanced')
-		logr.fit(df[[feature]], df['original_point'])
-		df['likelihood'] = logr.predict_proba(df[[feature]])[:,1]
+		# logr = LogisticRegression(class_weight = 'balanced')
+		# logr.fit(df[[feature]], df['original_point'])
+		
+		if feature_max != feature_min:
+			likelihood_smoothing = 0.25
+			likelihood_raw = 1 - df['feature_distance']/(feature_max - feature_min)
+			likelihood_smooth = likelihood_raw * (1-likelihood_smoothing) + likelihood_smoothing
+			df['likelihood'] = likelihood_smooth
+		else:
+			df['likelihood'] = 1
 
 		# Add feature impact
 		df['dy'] = df\
