@@ -25,11 +25,12 @@ class ICE():
 		self.ice_fis = {}
 
 
-	def fit(self, X, model):
+	def fit(self, X, model, lice = False):
 		'''
 		Creates all ICE datasets for each feature
 		@param X : Covariate matrix
 		@param model : Model to interpet
+		@param lice : Linearly spaced feature distribution instead of unique values
 		'''
 
 		self.features = list(X.columns)
@@ -44,7 +45,7 @@ class ICE():
 		for feature in X:
 			try:
 				start = datetime.now()
-				self.ice_dfs[feature], self.ice_fis[feature] = self.ice_fit_helper(X, model, feature)
+				self.ice_dfs[feature], self.ice_fis[feature] = self.ice_fit_helper(X, model, feature, lice)
 				end = datetime.now()
 				if self.time:
 					print(f"Fit {feature} in {(end - start).total_seconds():.2f} seconds")
@@ -55,7 +56,7 @@ class ICE():
 
 		return
 
-	def fit_single_feature(self, X, model, feature):
+	def fit_single_feature(self, X, model, feature, lice = False):
 		'''
 		Create single ICE dataset for a feature.
 		Used when only some features are of interest.
@@ -66,7 +67,7 @@ class ICE():
 
 		start = datetime.now()
 
-		self.ice_dfs[feature], self.ice_fis[feature] = self.ice_fit_helper(X, model, feature)
+		self.ice_dfs[feature], self.ice_fis[feature] = self.ice_fit_helper(X, model, feature, lice)
 		self.data = X.copy()
 
 		if self.model_type == "binary":
@@ -80,7 +81,7 @@ class ICE():
 
 
 
-	def ice_fit_helper(self, X, model, feature, 
+	def ice_fit_helper(self, X, model, feature, lice = False,
 					   min_obs_per_feature = 10, likelihood_smoothing = 0.25):
 		'''
 		Create ICE dataset for a single feature. Called by fit.
@@ -95,8 +96,10 @@ class ICE():
 		feature_min = np.min(X[feature])
 		feature_max = np.max(X[feature])
 		# feature_range = np.linspace(feature_min, feature_max, num = self.num_per_ob)
-
-		feature_range = np.sort(np.unique(X[feature]))
+		if lice:
+			feature_range = np.linspace(feature_min, feature_max, num = self.num_per_ob)
+		else:
+			feature_range = np.sort(np.unique(X[feature]))
 
 		# 	additional_points = np.linspace(min(X[feature]), max(X[feature]), 
 		# 		num = min_obs_per_feature - len(feature_range) + 2)
