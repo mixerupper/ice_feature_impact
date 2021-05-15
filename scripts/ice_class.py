@@ -1,10 +1,10 @@
+from sklearn.linear_model import LogisticRegression
+
 class ICE():
-	def __init__(self, model_type, num_per_ob = 30, frac_sample = 0.9, seed_num = None, trace = False):
+	def __init__(self, model_type, frac_sample = 0.9, seed_num = None, time = True, trace = False):
 		'''
 		Instantiates the ICE class
 		@param model_type : "binary" or "continuous" y-variable
-		@param num_per_ob : Number of points to generate per observation.
-							Points used in line plots.
 		@param frac_sample : Fraction of data set to sample for ICE df.
 		@param seed_num : Random seed for reproducibility.
 		@param trace : Turn on/off trace messages for debugging
@@ -13,15 +13,16 @@ class ICE():
 		ICE("binary", num_per_ob = 50, frac_sample = 0.5, seed_num = 420)
 		'''
 		self.model_type = model_type
-		self.num_per_ob = num_per_ob
 		self.frac_sample = frac_sample
 		self.seed_num = seed_num
 		self.trace = trace
+		self.time = time
 
 		# Initializations to raise exceptions
 		self.fit_all = False
 
 		self.ice_dfs = {}
+		self.ice_fis = {}
 
 
 	def fit(self, X, model):
@@ -43,9 +44,10 @@ class ICE():
 		for feature in X:
 			try:
 				start = datetime.now()
-				self.ice_dfs[feature] = self.ice_fit_helper(X, model, feature)
+				self.ice_dfs[feature], self.ice_fis[feature] = self.ice_fit_helper(X, model, feature)
 				end = datetime.now()
-				print(f"Fit {feature} in {(end - start).total_seconds():.2f} seconds")
+				if self.time:
+					print(f"Fit {feature} in {(end - start).total_seconds():.2f} seconds")
 			except ValueError:
 				print(f"Could not fit {feature} because of ValueError")
 
@@ -64,7 +66,7 @@ class ICE():
 
 		start = datetime.now()
 
-		self.ice_dfs[feature] = self.ice_fit_helper(X, model, feature)
+		self.ice_dfs[feature], self.ice_fis[feature] = self.ice_fit_helper(X, model, feature)
 		self.data = X.copy()
 
 		if self.model_type == "binary":
@@ -73,7 +75,8 @@ class ICE():
 		  self.data['y_pred'] = model.predict(X)
 
 		end = datetime.now()
-		print(f"Fit {feature} in {(end - start).total_seconds():.2f} seconds")
+		if self.time:
+			print(f"Fit {feature} in {(end - start).total_seconds():.2f} seconds")
 
 
 
@@ -88,8 +91,8 @@ class ICE():
 		# uniformly sample
 		X = self.uniform_sample(X, feature, self.frac_sample)
 
-		# feature_min = np.min(X[feature])
-		# feature_max = np.max(X[feature])
+		feature_min = np.min(X[feature])
+		feature_max = np.max(X[feature])
 		# feature_range = np.linspace(feature_min, feature_max, num = self.num_per_ob)
 
 		feature_range = np.sort(np.unique(X[feature]))
@@ -122,10 +125,14 @@ class ICE():
 		# Add on dydx for histogram and feature importance
 		# TODO: Deal with case where these names collide with existing feature names.
 		df['feature_distance'] = np.abs(df[feature] - df['orig_'+feature])
-		# df['closest_to_orig'] = df\
-		# 	.groupby('obs')['feature_distance']\
-		# 	.transform(lambda x:x == min(x))
+		df['original_point'] = (df['feature_distance'] == 0)*1
+		
+		# Add likelihood on phantom/real obs based on logistic regression
+		logr = LogisticRegression(class_weight = 'balanced')
+		logr.fit(df[[feature]], df['original_point'])
+		df['likelihood'] = logr.predict_proba(df[[feature]])[:,1]
 
+		# Add feature impact
 		df['dy'] = df\
 		    .groupby('obs')['y_pred']\
 		    .transform(lambda x:x - x.shift(1))
@@ -137,7 +144,19 @@ class ICE():
 		df['dydx'] = df['dy'] / df['dx']
 		df['dydx_abs'] = np.abs(df['dydx'])
 
-		return df
+		# Calculate feature impact
+		# Normalize a feature by subtracting mean and dividing by SD
+		# Therefore, we normalize these FIs by multiplying by SD
+		fi_raw = np.mean(df['dydx_abs'])
+		fi_in_dist_raw = np.sum(df['dydx_abs'] * df['likelihood'])/np.sum(df['likelihood'])
+		fi_normalized = fi_raw * np.std(df[feature])
+		fi_in_dist_normalized = fi_in_dist_raw * np.std(df[feature])
+		
+		fi_dict = {'Feature':feature,
+			'Feature Impact':fi_normalized,
+			'In-Dist Feature Impact':fi_in_dist_normalized}
+
+		return df, fi_dict
 
 	def ice_plot_single_feature(self, feature, 
 		plot_num = 200, close_multiple = 0.5, mode = "ice"):
@@ -177,6 +196,7 @@ class ICE():
 			.groupby(feature)\
 			.agg(y_pred = (y_var, 'mean'))\
 			.reset_index()\
+			.rename({'y_pred':y_var}, axis = 1)\
 			.assign(obs = -1,
 			        mean_line = 1)
 
@@ -189,7 +209,8 @@ class ICE():
 		fig, ax = plt.subplots()
 
 		end = datetime.now()
-		print(f"Preprocessed data in {(end - start).total_seconds():.2f} seconds")
+		if self.time:
+			print(f"Preprocessed data in {(end - start).total_seconds():.2f} seconds")
 
 		# plot ICE
 		start = datetime.now()
@@ -205,7 +226,8 @@ class ICE():
 			 	  markerscale = 0.6, fontsize = 'x-small')
 
 		end = datetime.now()
-		print(f"Plotted in {(end - start).total_seconds():.2f} seconds")
+		if self.time:
+			print(f"Plotted in {(end - start).total_seconds():.2f} seconds")
 
 		return
 		# return (ax, fig)
@@ -251,6 +273,7 @@ class ICE():
 				.groupby(feature)\
 				.agg(y_pred = (y_var, 'mean'))\
 				.reset_index()\
+				.rename({'y_pred':y_var}, axis = 1)\
 				.assign(obs = -1,
 				        mean_line = 1)
 
@@ -358,7 +381,7 @@ class ICE():
 
 		return ax
 
-	def feature_importance_hist(self, save_path = None, remove_zeros = True, ncols = 3, plot_num = 300):
+	def feature_impact_hist(self, save_path = None, remove_zeros = True, ncols = 3, plot_num = 300):
 		'''
 		Plot all feature importance histograms in a grid
 		'''
@@ -398,42 +421,22 @@ class ICE():
 					 	pad_inches = 1)
 
 	def feature_impact_table(self):
-		if not self.fit_all:
-			raise Exception("Call `fit` method before trying to plot.")
+		fi_df = pd.DataFrame()
 
-		all_features = np.sort(list(self.ice_dfs.keys()))
-		fi_mean = []
-		fi_abs_mean = []
-		fi_sd = []
-		fi_mean_normalized = []
-		fi_abs_mean_normalized = []
-
-		for i, feature in enumerate(all_features):
-			df = self.ice_dfs[feature]
-			fi_mean.append(np.mean(df.dydx))
-			fi_abs_mean.append(np.mean(df.dydx_abs))
-			fi_sd.append(np.std(df.dydx))
-			fi_mean_normalized.append(np.mean(df.dydx) * np.std(df[feature]))
-			fi_abs_mean_normalized.append(np.mean(df.dydx_abs) * np.std(df[feature]))
-
-		fi_df = pd.DataFrame({
-			'Feature':all_features,
-			'Mean':fi_mean,
-			'Mean Abs':fi_abs_mean,
-			'St. Dev.':fi_sd,
-			'Normalized Mean':fi_mean_normalized,
-			'Normalized Absolute Mean':fi_abs_mean_normalized
-		})\
-
-		fi_var = 'Normalized Absolute Mean'
-
-		fi_df['Feature Impact'] = fi_df[fi_var]/fi_df[fi_var].sum()*100
+		for feature in ice.ice_fis:
+			fi_df = fi_df\
+				.append(self.get_feature_impact(feature), ignore_index = True)
+		
+		for fi in fi_df.drop('Feature', axis = 1):
+			fi_df[f'Normalized {fi}'] = fi_df[fi]/fi_df[fi].sum()*100
 
 		fi_df = fi_df.fillna(0)
 
 		return fi_df
 
 
+	def get_feature_impact(self, feature):
+		return self.ice_fis[feature]
 
 	def uniform_sample(self, df, feature, frac_sample):
 		'''
