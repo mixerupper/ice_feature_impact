@@ -169,7 +169,7 @@ class ICE():
 
 		return df, fi_dict
 
-	def ice_plot_single_feature(self, feature, 
+	def ice_plot_single_feature(self, feature, save_path = None,
 		plot_num = 200, close_multiple = 0.5, mode = "ice"):
 		'''
 		Plots the ICE chart for a single feature.
@@ -239,6 +239,13 @@ class ICE():
 		end = datetime.now()
 		if self.time:
 			print(f"Plotted in {(end - start).total_seconds():.2f} seconds")
+
+		plt.tight_layout()
+
+		if save_path is not None:
+			fig.savefig(save_path,
+		            	bbox_inches = 'tight',
+		            	pad_inches = 0.1)
 
 		return
 		# return (ax, fig)
