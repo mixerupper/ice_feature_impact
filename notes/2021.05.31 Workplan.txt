@@ -1,0 +1,7 @@
+1. Evaluate publication options and determine deadlines
+2. Make corrections to equations
+3. Adapt from class project to paper
+	- Remove ICE replication section
+	- Address l-ICE concerns
+4. Add additional examples and comparisons, esp. to global SHAP
+5. Potentially improve the in-distribution impact estimate.
