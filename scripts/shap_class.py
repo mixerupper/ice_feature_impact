@@ -16,13 +16,13 @@ class SHAP_FI():
         self.time = time
         self.max_display = max_display
 
-        self.shapley = []
+        self.shapley = None
 
     def fit(self, X, model):
         '''
         Uses Shapley values to explain any machine learning model.
-        @param X : Covariate matrix
-        @param model : Model to interpet
+        @param X : Covariate matrix.
+        @param model : Model to interpet.
         '''
         start = datetime.now()
         shap_values = shap.Explainer(model).shap_values(X)
@@ -31,32 +31,30 @@ class SHAP_FI():
         if self.time:
             print(f"Fit in {(end - start).total_seconds():.2f} seconds")
 
-        self.shapley.append(shap_values)
+        self.shapley = shap_values
 
         return
 
     def plot(self, save_path = None):
         '''
-        Plot the SHAP values in a chart. Save to save_path
+        Plot the SHAP values.
         '''
 
-        fig = shap.summary_plot(self.shapley[0][1], X, plot_type = "bar", max_display = self.max_display)
+        fig = shap.summary_plot(self.shapley[1], X, plot_type = "bar", max_display = self.max_display)
 
 
-        '''
         if save_path is not None:
             fig.savefig(save_path,
                         bbox_inches = 'tight',
                         pad_inches = 1)
-        '''
 
 
     def fi_table(self, X):
         '''
-        Return shapley value table
+        Return SHAP Value table.
         '''
 
-        features, vals = X.columns, np.abs(self.shapley[0][1]).mean(0)
+        features, vals = X.columns, np.abs(self.shapley[1]).mean(0)
 
         fi_df = pd.DataFrame(list(zip(features, vals)), columns=['Feature','Shapley Value']).\
                sort_values('Shapley Value', ascending = False).\
@@ -65,5 +63,4 @@ class SHAP_FI():
                 drop(['index'], axis=1)
 
 
-        return fi_df
-    
+        return fi_df  
