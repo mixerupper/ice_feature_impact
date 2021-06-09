@@ -1,7 +1,7 @@
 from sklearn.linear_model import LogisticRegression
 
 class ICE():
-	def __init__(self, model_type, frac_sample = 0.9, seed_num = None, time = True, trace = False):
+	def __init__(self, model_type, frac_sample = 0.9, seed_num = None, time = False, trace = False):
 		'''
 		Instantiates the ICE class
 		@param model_type : "binary" or "continuous" y-variable
@@ -399,7 +399,7 @@ class ICE():
 
 		return ax
 
-	def feature_impact_hist(self, save_path = None, remove_zeros = True, ncols = 3, plot_num = 300):
+	def feature_hist(self, save_path = None, remove_zeros = True, ncols = 3, plot_num = 300):
 		'''
 		Plot all feature importance histograms in a grid
 		'''
@@ -438,15 +438,12 @@ class ICE():
 					 	bbox_inches = 'tight',
 					 	pad_inches = 1)
 
-	def feature_impact_table(self):
+	def feature_table(self):
 		fi_df = pd.DataFrame()
 
 		for feature in ice.ice_fis:
 			fi_df = fi_df\
 				.append(self.get_feature_impact(feature), ignore_index = True)
-		
-		for fi in fi_df.drop('Feature', axis = 1):
-			fi_df[f'Normalized {fi}'] = fi_df[fi]/fi_df[fi].sum()*100
 
 		fi_df = fi_df.fillna(0)
 

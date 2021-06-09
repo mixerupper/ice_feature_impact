@@ -29,9 +29,10 @@ class SHAP_FI():
         end = datetime.now()
 
         if self.time:
-            print(f"Fit in {(end - start).total_seconds():.2f} seconds")
+            print(f"SHAP fits in {(end - start).total_seconds():.2f} seconds")
 
         self.shapley = shap_values
+        self.features = X.columns
 
         return
 
@@ -40,7 +41,8 @@ class SHAP_FI():
         Plot the SHAP values.
         '''
 
-        fig = shap.summary_plot(self.shapley[1], X, plot_type = "bar", max_display = self.max_display)
+        fig = shap.summary_plot(self.shapley[1], X, 
+            plot_type = "bar", max_display = self.max_display)
 
 
         if save_path is not None:
@@ -49,15 +51,16 @@ class SHAP_FI():
                         pad_inches = 1)
 
 
-    def fi_table(self, X):
+    def feature_table(self):
         '''
         Return SHAP Value table.
         '''
 
-        features, vals = X.columns, np.abs(self.shapley[1]).mean(0)
+        vals = np.abs(self.shapley[1]).mean(0)
 
-        fi_df = pd.DataFrame(list(zip(features, vals)), columns=['Feature','Shapley Value']).\
-               sort_values('Shapley Value', ascending = False).\
+        fi_df = pd.DataFrame(list(zip(self.features, vals)), 
+                    columns=['Feature','Shapley Value']).\
+                sort_values('Shapley Value', ascending = False).\
                 head(self.max_display).\
                 reset_index().\
                 drop(['index'], axis=1)

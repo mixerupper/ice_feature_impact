@@ -1,4 +1,16 @@
-def build_comparator_table(X, model, ice_object, fi_classes):
+class Comparator():
+    def __init__(trace = False):
+        self.trace = trace
+
+    def fit(X, model, fi_classes):
+        for fi in fi_classes:
+            fi.fit(X, model)
+
+    def build_raw_table:
+
+    def build_normalized_table:
+
+def build_comparator_table(X, model, fi_classes):
     '''
     Purpose: Build a table to compare our feature importance/impact metrics
     @X: Dataset with features as column names
@@ -10,12 +22,15 @@ def build_comparator_table(X, model, ice_object, fi_classes):
     '''
 
 
-    output_table = ice_object.feature_impact_table()
+    output_table = None
 
     for fi in fi_classes:
         fi.fit(X, model)
 
-        output_table = output_table.\
-                merge(fi.fi_table(X), how = "left", on = "Feature")
+        if output_table is None:
+            output_table = fi.feature_table()
+        else:
+            output_table = output_table.\
+                merge(fi.feature_table(), how = "left", on = "Feature")
 
     return output_table
