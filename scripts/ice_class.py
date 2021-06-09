@@ -36,7 +36,6 @@ class ICE():
 		self.features = list(X.columns)
 		self.data = X.copy()
 
-		# get predictions
 		if self.model_type == "binary":
 		  self.data['y_pred'] = model.predict_proba(X)[:,1]
 		else:

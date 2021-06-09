@@ -1,6 +1,8 @@
+import shap
+
 class SHAP_FI():
 
-    def __init__(self, seed_num = None, time = True, trace = False, max_display = 999):
+    def __init__(self, seed_num = None, time = False, trace = False, max_display = 999):
         '''
         Instantiates the SHAP_FI class.
         @param seed_num : Random seed for reproducibility.
@@ -40,6 +42,8 @@ class SHAP_FI():
         '''
         Plot the SHAP values.
         '''
+        if self.shap is None:
+            raise("Fit shap first.")
 
         fig = shap.summary_plot(self.shapley[1], X, 
             plot_type = "bar", max_display = self.max_display)
