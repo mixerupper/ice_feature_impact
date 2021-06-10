@@ -2,9 +2,10 @@ import shap
 
 class SHAP_FI():
 
-    def __init__(self, seed_num = None, time = False, trace = False, max_display = 999):
+    def __init__(self, model_type, seed_num = None, time = False, trace = False, max_display = 999):
         '''
         Instantiates the SHAP_FI class.
+        @param model_type: Determine which version of SHAP to use
         @param seed_num : Random seed for reproducibility.
         @param time: Set time functionality for runtime.
         @param trace : Turn on/off trace messages for debugging.
@@ -13,12 +14,11 @@ class SHAP_FI():
         @examples
         SHAP_FI(420, time = True, trace = False, max_display = 10)
         '''
+        self.model_type = model_type
         self.seed_num = seed_num
         self.trace = trace
         self.time = time
         self.max_display = max_display
-
-        self.shapley = None
 
     def fit(self, X, model):
         '''
@@ -26,15 +26,32 @@ class SHAP_FI():
         @param X : Covariate matrix.
         @param model : Model to interpet.
         '''
+        self.features = X.columns
+
         start = datetime.now()
-        shap_values = shap.Explainer(model).shap_values(X)
+
+        if self.model_type == "linear":
+            shap_values = shap.explainers\
+                .Linear(model, X)\
+                .shap_values(X)
+        elif self.model_type == "tree":
+            shap_values = shap.explainers\
+                .Tree(model)\
+                .shap_values(X)
+        elif self.model_type == "neural-network":
+            pass
+        else:
+            raise("Unrecognized model type.")
+
         end = datetime.now()
+
+        if type(shap_values) == "list":
+            shap_values = shap_values[1]
+
+        self.shap_values = shap_values.mean(axis = 0)
 
         if self.time:
             print(f"SHAP fits in {(end - start).total_seconds():.2f} seconds")
-
-        self.shap_values = shap_values.mean(axis = 0)
-        self.features = X.columns
 
         return
 
@@ -45,7 +62,7 @@ class SHAP_FI():
         if self.shap is None:
             raise("Fit shap first.")
 
-        fig = shap.summary_plot(self.shap_values, X, 
+        fig = shap.summary_plot(self.shap_values, self.features, 
             plot_type = "bar", max_display = self.max_display)
 
 

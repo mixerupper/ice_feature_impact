@@ -1,7 +1,7 @@
 from sklearn.linear_model import LogisticRegression
 
 class ICE():
-	def __init__(self, model_type, frac_sample = 0.9, seed_num = None, time = False, trace = False):
+	def __init__(self, model_type, frac_sample = 1, seed_num = None, time = False, trace = False):
 		'''
 		Instantiates the ICE class
 		@param model_type : "binary" or "continuous" y-variable
@@ -153,18 +153,20 @@ class ICE():
 
 		df['dydx'] = df['dy'] / df['dx']
 		df['dydx_abs'] = np.abs(df['dydx'])
+		# Drop NAs
+		df = df.loc[lambda x:~x.dydx_abs.isna()]
 
 		# Calculate feature impact
 		# Normalize a feature by subtracting mean and dividing by SD
 		# Therefore, we normalize these FIs by multiplying by SD
 		fi_raw = np.mean(df['dydx_abs'])
 		fi_in_dist_raw = np.sum(df['dydx_abs'] * df['likelihood'])/np.sum(df['likelihood'])
-		fi_normalized = fi_raw * np.std(df[feature])
-		fi_in_dist_normalized = fi_in_dist_raw * np.std(df[feature])
+		fi_standard = fi_raw * np.std(X[feature])
+		fi_in_dist_standard = fi_in_dist_raw * np.std(X[feature])
 		
 		fi_dict = {'Feature':feature,
-			'Feature Impact':fi_normalized,
-			'In-Dist Feature Impact':fi_in_dist_normalized}
+			'Feature Impact':fi_standard,
+			'In-Dist Feature Impact':fi_in_dist_standard}
 
 		return df, fi_dict
 
