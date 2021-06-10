@@ -20,4 +20,5 @@ def results_root(path):
 # Import ICE class
 exec(open("../../scripts/ice_class.py").read())
 exec(open("../../scripts/shap_class.py").read())
+exec(open("../../scripts/native_class.py").read())
 exec(open("../../scripts/fi_comparators.py").read())

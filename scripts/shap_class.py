@@ -33,7 +33,7 @@ class SHAP_FI():
         if self.time:
             print(f"SHAP fits in {(end - start).total_seconds():.2f} seconds")
 
-        self.shapley = shap_values
+        self.shap_values = shap_values.mean(axis = 0)
         self.features = X.columns
 
         return
@@ -45,7 +45,7 @@ class SHAP_FI():
         if self.shap is None:
             raise("Fit shap first.")
 
-        fig = shap.summary_plot(self.shapley[1], X, 
+        fig = shap.summary_plot(self.shap_values, X, 
             plot_type = "bar", max_display = self.max_display)
 
 
@@ -60,14 +60,10 @@ class SHAP_FI():
         Return SHAP Value table.
         '''
 
-        vals = np.abs(self.shapley[1]).mean(0)
-
-        fi_df = pd.DataFrame(list(zip(self.features, vals)), 
-                    columns=['Feature','Shapley Value']).\
+        fi_df = pd.DataFrame({'Feature':self.features,
+                              'Shapley Value': self.shap_values}).\
                 sort_values('Shapley Value', ascending = False).\
-                head(self.max_display).\
                 reset_index().\
                 drop(['index'], axis=1)
-
 
         return fi_df  

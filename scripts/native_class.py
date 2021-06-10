@@ -1,6 +1,6 @@
-class TREE_FI():
+class Native_FI():
 
-    def __init__(self, model, seed_num = None, time = True, trace = False, max_display = 999):
+    def __init__(self, seed_num = None, time = True, trace = False, max_display = 999):
         '''
         Instantiates the SHAP_FI class.
         @param seed_num : Random seed for reproducibility.
@@ -15,15 +15,7 @@ class TREE_FI():
         self.trace = trace
         self.time = time
         self.max_display = max_display
-        self.model = model
         
-        if isinstance(self.model, (RandomForestClassifier, RandomForestRegressor)):
-            self.fi_type = 'RF'
-        elif isinstance(self.model, (GradientBoostingClassifier, GradientBoostingRegressor)):
-            self.fi_type = 'GB'
-        else:
-            raise ValueError('Incorrect model type!')
-
 
     def fit(self, X, model):
         '''
@@ -33,10 +25,12 @@ class TREE_FI():
         '''
         
         self.features = X.columns
-        if hasattr(model, 'feature_importances_') == True:
-            pass
+        if hasattr(model, 'feature_importances_'):
+            self.feature_values = model.feature_importances_
+        elif hasattr(model, 'coef_'):
+            self.feature_values = model.coef_
         else:
-            raise ValueError('Non tree-based model!')
+            raise ValueError('No native feature values')
 
 
     def plot(self, save_path = None):
@@ -44,18 +38,15 @@ class TREE_FI():
         Plot the SHAP values.
         '''
         fi_df = pd.DataFrame({'Feature': self.features,
-                              self.fi_type + ' Feature Importance' : self.model.feature_importances_*100}).\
-                            sort_values(self.fi_type + ' Feature Importance').\
+                              'Native Feature Importance' : self.feature_values}).\
+                            sort_values('Native Feature Importance', ascending = False).\
                             head(self.max_display)
-        
-        
-        
     
         ax = fi_df.plot.barh(x = 'Feature',
-                             y = self.fi_type + ' Feature Importance',
+                             y = 'Native Feature Importance',
                              legend = False,
                              figsize = (10,12))
-        ax.set_title('{} Feature Importance'.format(self.fi_type))
+        ax.set_title('Native Feature Importance')
 
 
         for p in ax.patches:
@@ -77,7 +68,8 @@ class TREE_FI():
         '''
     
         fi_df = pd.DataFrame({'Feature': self.features,
-                              self.fi_type + ' Feature Importance' : self.model.feature_importances_*100}).\
-                            sort_values(self.fi_type + ' Feature Importance').\
+                              'Native Feature Importance' : self.feature_values}).\
+                            sort_values('Native Feature Importance', ascending = False).\
                             head(self.max_display)
+                            
         return fi_df        
