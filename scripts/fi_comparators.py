@@ -12,6 +12,8 @@ class Comparator():
             the feature importance/impact table
         '''
         for fi in fi_classes:
+            if self.trace:
+                print(f"Fitting for {fi}")
             fi.fit(X, model)
 
         self.fi_classes = fi_classes
@@ -32,6 +34,6 @@ class Comparator():
         output_table = self.build_raw_table()
 
         for i in output_table.columns[1:]:
-            output_table[i] = output_table[i]/output_table[i].sum() * 100
+            output_table[i] = output_table[i]/np.sum(np.abs(output_table[i])) * 100
 
         return output_table

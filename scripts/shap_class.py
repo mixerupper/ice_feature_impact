@@ -45,7 +45,10 @@ class SHAP_FI():
 
         end = datetime.now()
 
-        if type(shap_values) == "list":
+        # For classification, get the shap for the final class
+        # hopefully last class = 1 but can't find relevant documentation
+        if type(shap_values) == list:
+            print(f"List of shap values. Taking 2nd element.")
             shap_values = shap_values[1]
 
         self.shap_values = shap_values.mean(axis = 0)

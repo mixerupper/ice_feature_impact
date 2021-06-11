@@ -1,0 +1,50 @@
+1. Plan of attack
+
+We're planning to submit to Advances in Interpretable Machine Learning and Artificial Intelligence (AIMLAI) (https://project.inria.fr/aimlai/), a workshop within the ECML/PKDD conference. 
+
+The submission deadline is June 24.
+
+2. Dataset motivation
+
+In the original ICE paper, each dataset made a particular point about the advantages of ICE. We'd also like to follow that structure with ICE feature impact. We discuss advantages next.
+
+3. Advantages
+
+(a) Feature importance
+- Complementary: Feature impact measures the impact of the feature on the prediction, not the importance of the feature to the model's performance.
+
+(b) SHAP
+- ICE FI is much faster and gets an exact answer: it does not require a monte carlo approximation
+- ICE FI's phantom points only manipulate the at-issue feature--it therefore does not move as far out of distribution as SHAP algorithms that mash together two entirely separate points
+- Because ICE FI only manipulates the at-issue feature, it is more feasible to create a model-agnostic, in-distribution version
+- ICE FI is more interpretable as entirely analogous to linear regression coefficients (Ridge example)
+
+(c) ICE plots
+- ICE FI allows you to quantitatively compare feature impact which is more precise than visual inspection
+- Complementary: ICE FI allows you to view only the ICE plots that are most important when ranked by feature impact, allowing model interpretation to scale. Visually scanning hundreds or thousands of plots to interpret a model does not scale.
+
+4. Datasets and Model (so far)
+
+- Cancer/Random Forest: Base dataset-model configuration to show the usefulness of ICE FI compared to feature importance metrics.
+- Boston/Ridge: Shows how ICE FI corresponds exactly to linear regression coefficients while Shap does not, making our method more intuitive.
+- Large feature set: 100 feature dataset 
+
+5. Improvement to in-distribution ICE feature impact
+
+The previous version simply divided distance from original feature value by the range of the feature in the dataset (max - min). We can make it more sophisticated by dividing it by the standard deviation instead. I've attached two possible formulas which we can use to calculate the weighting.
+
+Critically, this new method allows us to make the weights arbitrarily complicated. The standard deviation can be just a simple standard deviation or can be the output of a model of all other covariates.
+
+
+6. Challenges
+
+(a) Shap: The documentation for the python Shap package is spotty or entirely missing, and they have many different variants of Shap without a clear explanation of what each one is. We may be forced to code up our own version of Shap since we've encountered a lot of difficulties in fitting Shap to neural networks.
+
+Could you point us to a model-agnostic, global Shap paper with an algorithm? Otherwise, we will follow this process: https://christophm.github.io/interpretable-ml-book/shapley.html
+
+We also haven't read the SHAP section completely yet, so we will do this and see if it helps us understand calculating Shapley values more.
+
+(b) Publication requirements: We're not clear what requirements are for publication and how the paper looks so far. There's also a 8 page limit that's hard to meet.
+
+
+
