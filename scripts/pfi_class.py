@@ -1,3 +1,5 @@
+from sklearn.inspection import permutation_importance
+
 class PFI_FI():
 
     def __init__(self, seed_num = None, time = True, trace = False, max_display = 999):
@@ -32,7 +34,7 @@ class PFI_FI():
         end = datetime.now()
         
         if self.time:
-            print(f"SHAP fits in {(end - start).total_seconds():.2f} seconds")
+            print(f"PFI fits in {(end - start).total_seconds():.2f} seconds")
         
         return
         
