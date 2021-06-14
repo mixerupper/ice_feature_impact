@@ -21,4 +21,5 @@ def results_root(path):
 exec(open("../../scripts/ice_class.py").read())
 exec(open("../../scripts/shap_class.py").read())
 exec(open("../../scripts/native_class.py").read())
+exec(open("../../scripts/pfi_class.py").read())
 exec(open("../../scripts/fi_comparators.py").read())

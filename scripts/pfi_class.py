@@ -2,7 +2,7 @@ from sklearn.inspection import permutation_importance
 
 class PFI_FI():
 
-    def __init__(self, seed_num = None, time = True, trace = False, max_display = 999):
+    def __init__(self, y, seed_num = 42, time = True, trace = False, max_display = 999):
         '''
         Instantiates the SHAP_FI class.
         @param seed_num : Random seed for reproducibility.
@@ -17,19 +17,23 @@ class PFI_FI():
         self.trace = trace
         self.time = time
         self.max_display = max_display
+
+        # Unlike other feature importance, permutation requires y.
+        # Initialize class with it to keep save fit structure
+        self.y = y
    
 
     def fit(self, X, model):
         '''
-        Uses Shapley values to explain any machine learning model.
+        Uses permutation feature importance to explain any machine learning model.
         @param X : Covariate matrix.
         @param model : Model to interpet.
         '''
         
         start = datetime.now()
         self.features = X.columns
-        self.result = permutation_importance(model, X, y, n_repeats=10,
-                                random_state=42)
+        self.result = permutation_importance(model, X, self.y, n_repeats=10,
+                                random_state=self.seed_num)
         
         end = datetime.now()
         
@@ -41,7 +45,7 @@ class PFI_FI():
 
     def plot(self, save_path = None):
         '''
-        Plot the SHAP values.
+        Plot the PFI values.
         '''
         
         pfi = pd.DataFrame({'Feature' : self.features,
@@ -68,7 +72,7 @@ class PFI_FI():
 
     def feature_table(self):
         '''
-        Return SHAP Value table.
+        Return PFI table.
         '''
     
         pfi_df = pd.DataFrame({'Feature' : self.features,
