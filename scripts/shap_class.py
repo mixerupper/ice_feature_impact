@@ -2,7 +2,7 @@ import shap
 
 class SHAP_FI():
 
-    def __init__(self, model_type, seed_num = None, time = False, trace = False, max_display = 999):
+    def __init__(self, model_type, n_samples = 3, seed_num = None, time = False, trace = False, max_display = 999):
         '''
         Instantiates the SHAP_FI class.
         @param model_type: Determine which version of SHAP to use
@@ -19,6 +19,7 @@ class SHAP_FI():
         self.trace = trace
         self.time = time
         self.max_display = max_display
+        self.n_samples = n_samples
 
     def fit(self, X, model):
         '''
@@ -38,8 +39,15 @@ class SHAP_FI():
             shap_values = shap.explainers\
                 .Tree(model)\
                 .shap_values(X)
-        elif self.model_type == "neural-network":
-            pass
+        elif self.model_type == "nn-binary":
+            predict_func = lambda x:model.predict_proba(x)[:,1]
+            explainer = shap.KernelExplainer(predict_func, X)
+            shap_values_all = explainer.shap_values(X, nsamples = 1)
+            shap_values = np.mean(shap_values_all, axis = 0)
+        elif self.model_type == "nn-continuous":
+            explainer = shap.KernelExplainer(model.predict, X)
+            shap_values_all = explainer.shap_values(X, nsamples = 1)
+            shap_values = np.mean(shap_values_all, axis = 0)
         else:
             raise("Unrecognized model type.")
 

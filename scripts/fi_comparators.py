@@ -31,9 +31,14 @@ class Comparator():
         return output_table
 
     def build_normalized_table(self):
+        '''
+        Removes sign of feature impact and normalizes to add up to 100
+        '''
+
         output_table = self.build_raw_table()
 
         for i in output_table.columns[1:]:
-            output_table[i] = output_table[i]/np.sum(np.abs(output_table[i])) * 100
+            output_table[i] = np.abs(output_table[i])
+            output_table[i] = output_table[i]/np.sum(output_table[i]) * 100
 
         return output_table

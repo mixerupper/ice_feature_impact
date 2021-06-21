@@ -81,7 +81,7 @@ class ICE():
 
 
 	def ice_fit_helper(self, X, model, feature, lice = False,
-					   min_obs_per_feature = 10, likelihood_smoothing = 0.25):
+					   min_obs_per_feature = 10, likelihood_decay = 0.75):
 		'''
 		Create ICE dataset for a single feature. Called by fit.
 		@param X : Covariate matrix
@@ -94,17 +94,11 @@ class ICE():
 
 		feature_min = np.min(X[feature])
 		feature_max = np.max(X[feature])
-		# feature_range = np.linspace(feature_min, feature_max, num = self.num_per_ob)
+		
 		if lice:
 			feature_range = np.linspace(feature_min, feature_max, num = self.num_per_ob)
 		else:
 			feature_range = np.sort(np.unique(X[feature]))
-
-		# 	additional_points = np.linspace(min(X[feature]), max(X[feature]), 
-		# 		num = min_obs_per_feature - len(feature_range) + 2)
-		# 	feature_range = np.append(feature_range, additional_points)
-		# 	feature_range = np.sort(np.unique(feature_range))
-
 
 		df = X.loc[np.repeat(X.index, len(feature_range))]
 		df['orig_'+feature] = df[feature]
@@ -129,16 +123,14 @@ class ICE():
 		# TODO: Deal with case where these names collide with existing feature names.
 		df['feature_distance'] = np.abs(df[feature] - df['orig_'+feature])
 		df['original_point'] = (df['feature_distance'] == 0)*1
+		feature_std = np.std(X[feature])
 		
 		# Add likelihood on phantom/real obs based on logistic regression
 		# logr = LogisticRegression(class_weight = 'balanced')
 		# logr.fit(df[[feature]], df['original_point'])
 		
-		if feature_max != feature_min:
-			likelihood_smoothing = 0.25
-			likelihood_raw = 1 - df['feature_distance']/(feature_max - feature_min)
-			likelihood_smooth = likelihood_raw * (1-likelihood_smoothing) + likelihood_smoothing
-			df['likelihood'] = likelihood_smooth
+		if feature_std != 0:
+			df['likelihood'] = likelihood_decay ** (df['feature_distance']/feature_std)
 		else:
 			df['likelihood'] = 1
 
@@ -152,8 +144,14 @@ class ICE():
 		    .transform(lambda x:x - x.shift(1))
 
 		df['dydx'] = df['dy'] / df['dx']
+
+		# Account for NA of very first unique value that doesn't have a lag
+		df['dydx'] = df\
+			.groupby('obs')['dydx']\
+			.transform(lambda x:np.where(x.isna(), x.shift(-1), x))
+
 		df['dydx_abs'] = np.abs(df['dydx'])
-		# Drop NAs
+
 		df = df.loc[lambda x:~x.dydx_abs.isna()]
 
 		if df.shape[0] == 0:
@@ -164,10 +162,13 @@ class ICE():
 			# Calculate feature impact
 			# Normalize a feature by subtracting mean and dividing by SD
 			# Therefore, we normalize these FIs by multiplying by SD
-			fi_raw = np.mean(df['dydx_abs'])
-			fi_in_dist_raw = np.sum(df['dydx_abs'] * df['likelihood'])/np.sum(df['likelihood'])
-			fi_standard = fi_raw * np.std(X[feature])
-			fi_in_dist_standard = fi_in_dist_raw * np.std(X[feature])
+
+			temp_df = df.loc[lambda x:~x.dydx_abs.isna()]
+
+			fi_raw = np.mean(temp_df['dydx_abs'])
+			fi_in_dist_raw = np.sum(temp_df['dydx_abs'] * temp_df['likelihood'])/np.sum(temp_df['likelihood'])
+			fi_standard = fi_raw * feature_std
+			fi_in_dist_standard = fi_in_dist_raw * feature_std
 			
 			fi_dict = {'Feature':feature,
 				'Feature Impact':fi_standard,
