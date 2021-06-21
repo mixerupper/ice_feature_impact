@@ -1,5 +1,4 @@
-# Conditional Average Treatment Effects for Feature Importance
-Project for DS-GA 3001 Tools &amp; Techniques for Machine Learning 
+Initially, a project for DS-GA 3001 Tools &amp; Techniques for Machine Learning 
 
 scripts/ice_class.py holds the main ICE class with replication and extension
 
