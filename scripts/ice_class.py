@@ -156,8 +156,8 @@ class ICE():
 
 		if df.shape[0] == 0:
 			fi_dict = {'Feature':feature,
-			'Feature Impact':0,
-			'In-Dist Feature Impact':0}
+			'ICE FI':0,
+			'ICE In-Dist FI':0}
 		else:
 			# Calculate feature impact
 			# Normalize a feature by subtracting mean and dividing by SD
@@ -165,14 +165,38 @@ class ICE():
 
 			temp_df = df.loc[lambda x:~x.dydx_abs.isna()]
 
+			# Feature impact/In-Dist Feature impact
 			fi_raw = np.mean(temp_df['dydx_abs'])
 			fi_in_dist_raw = np.sum(temp_df['dydx_abs'] * temp_df['likelihood'])/np.sum(temp_df['likelihood'])
 			fi_standard = fi_raw * feature_std
 			fi_in_dist_standard = fi_in_dist_raw * feature_std
+
+			# Heterogeneity
+			fi_het = temp_df\
+				.groupby(feature)\
+				.agg(dydx_std = ('dydx', 'std'))\
+				.reset_index(drop = True)\
+				.loc[:,'dydx_std']\
+				.mean()
+
+			fi_het = fi_het * feature_std
+
+			# Non-linearity
+			fi_nl = temp_df\
+				.groupby('obs')\
+				.agg(dydx_std = ('dydx', 'std'))\
+				.reset_index(drop = True)\
+				.loc[:,'dydx_std']\
+				.mean()
+
+			fi_nl = fi_nl * feature_std
+
 			
 			fi_dict = {'Feature':feature,
-				'Feature Impact':fi_standard,
-				'In-Dist Feature Impact':fi_in_dist_standard}
+				'ICE FI':fi_standard,
+				'ICE In-Dist FI':fi_in_dist_standard,
+				'ICE Heterogeneity':fi_het,
+				'ICE Non-linearity':fi_nl}
 
 		# TODO: drop every column except necessary ones for plotting to save space
 

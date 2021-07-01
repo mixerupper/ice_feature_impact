@@ -28,7 +28,7 @@ class Native_FI():
         if hasattr(model, 'feature_importances_'):
             self.feature_values = model.feature_importances_
         elif hasattr(model, 'coef_'):
-            self.feature_values = model.coef_
+            self.feature_values = model.coef_.reshape(-1)
         else:
             raise ValueError('No native feature values')
 
