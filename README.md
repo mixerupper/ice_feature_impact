@@ -1,4 +1,4 @@
-Initially, a project for DS-GA 3001 Tools &amp; Techniques for Machine Learning. The final repository for that repo is the "original_report" branch.
+Initially, a project for DS-GA 3001 Tools &amp; Techniques for Machine Learning taught by David Rosenberg. The final repository for that repo is the "original_report" branch.
 
 Published in the 2021 AIMLAI workshop in the ECML PKDD conference.
 
